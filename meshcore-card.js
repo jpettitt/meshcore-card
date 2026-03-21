@@ -112,13 +112,18 @@ class MeshcoreCard extends HTMLElement {
     return null;
   }
 
-  // Find an entity belonging to a specific device that contains the metric name
+  // Find an entity belonging to a specific device matching the metric name.
+  // Prefers exact suffix (_metric at end of ID), then metric followed by underscore.
   _findEntityByDevice(deviceId, metric) {
     if (!deviceId || !this._hass.entities) return null;
+    const suffix = `_${metric}`;
+    let partial = null;
     for (const [entityId, info] of Object.entries(this._hass.entities)) {
-      if (info.device_id === deviceId && entityId.includes(`_${metric}`)) return entityId;
+      if (info.device_id !== deviceId) continue;
+      if (entityId.endsWith(suffix)) return entityId;
+      if (!partial && entityId.includes(suffix + "_")) partial = entityId;
     }
-    return null;
+    return partial;
   }
 
   // ── Discovery ────────────────────────────────────────────────────────────
@@ -431,8 +436,9 @@ class MeshcoreCard extends HTMLElement {
               ${trafficCells.map(c => {
                 const v = this._val(c.id);
                 const blank = v === null || v === "unknown" || v === "unavailable";
-                return `<div class="tc"><div class="tc-label">${c.label}</div>
-                  <div class="tc-val ${blank ? "dim" : c.cls} clickable" data-entity="${c.id}">${blank ? "—" : v}</div></div>`;
+                const display = blank ? "—" : (isNaN(Number(v)) ? v : Math.round(Number(v)));
+              return `<div class="tc"><div class="tc-label">${c.label}</div>
+                  <div class="tc-val ${blank ? "dim" : c.cls} clickable" data-entity="${c.id}">${display}</div></div>`;
               }).join("")}
             </div>` : ""}
 
