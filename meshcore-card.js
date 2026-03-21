@@ -182,6 +182,16 @@ class MeshcoreCard extends HTMLElement {
     return `<span class="chip ${cls} clickable" data-entity="${id}">${label ? `<span class="chip-label">${label}</span>` : ""}${blank ? "—" : value}</span>`;
   }
 
+  _locLink(lat, lon, entityId) {
+    const latF = parseFloat(lat).toFixed(5);
+    const lonF = parseFloat(lon).toFixed(5);
+    const url = `https://analyzer.letsmesh.net/map?lat=${latF}&long=${lonF}&zoom=10`;
+    return `<div class="loc-row">
+      <span class="chip clickable" data-entity="${entityId}">📍 ${latF}, ${lonF}</span>
+      <a class="map-link" href="${url}" target="_blank" rel="noopener">Map ↗</a>
+    </div>`;
+  }
+
   _badge(id, text, cls = "") {
     if (!id) return `<span class="badge dim">${text}</span>`;
     return `<span class="badge ${cls} clickable" data-entity="${id}">${text}</span>`;
@@ -253,8 +263,8 @@ class MeshcoreCard extends HTMLElement {
           ${battV !== null ? this._chip(battVId, "⚡", parseFloat(battV).toFixed(3) + "V") : ""}
           ${this._exists(ch1VId) ? this._chip(ch1VId, "Ch1 ", (this._val(ch1VId) || "—") + "V") : ""}
           ${this._exists(rateLimId) ? this._chip(rateLimId, "Rate ", (this._val(rateLimId) || "—") + " tok") : ""}
-          ${lat !== null && lon !== null ? this._chip(latId, "📍 ", `${parseFloat(lat).toFixed(4)}, ${parseFloat(lon).toFixed(4)}`) : ""}
         </div>
+        ${lat !== null && lon !== null ? this._locLink(lat, lon, latId) : ""}
 
         ${showRf ? `
           <div class="rf-row">
@@ -301,9 +311,13 @@ class MeshcoreCard extends HTMLElement {
     const canceledId = p("canceled");
     const dupId      = p("duplicate");
     const airtimeId  = p("airtime");
+    const rxAirtimeId = p("rx_airtime");
     const channelId  = p("channel_utilization");
     const noiseId    = p("noise_floor");
     const queueId    = p("queue_length");
+    const uptimeId   = p("uptime");
+    const txRateId   = [p("tx_per_minute"), p("tx_rate"), p("messages_per_minute")].find(id => this._exists(id));
+    const rxRateId   = [p("rx_per_minute"), p("rx_rate")].find(id => this._exists(id));
 
     // Sensor extras (type 4)
     const tempId     = p("temperature");
@@ -338,10 +352,14 @@ class MeshcoreCard extends HTMLElement {
       { label: "Duplicate", id: dupId,      cls: "yellow" },
     ].filter(c => this._exists(c.id));
 
-    const airtime = this._val(airtimeId);
-    const channel = this._val(channelId);
-    const noise   = this._val(noiseId);
-    const queue   = this._val(queueId);
+    const airtime   = this._val(airtimeId);
+    const rxAirtime = this._val(rxAirtimeId);
+    const channel   = this._val(channelId);
+    const noise     = this._val(noiseId);
+    const queue     = this._val(queueId);
+    const uptime    = this._val(uptimeId);
+    const txRate    = txRateId ? this._val(txRateId) : null;
+    const rxRate    = rxRateId ? this._val(rxRateId) : null;
 
     // Sensor telemetry
     const telemetryCells = [
@@ -372,29 +390,56 @@ class MeshcoreCard extends HTMLElement {
         ${route && !["unknown","unavailable"].includes(route) ? `
           <div class="node-route">↝ ${route}</div>` : ""}
 
-        ${battV !== null || (lat !== null && lon !== null) ? `
+        ${battV !== null ? `
           <div class="node-chip-row">
-            ${battV !== null ? this._chip(battVId, "⚡ ", parseFloat(battV).toFixed(3) + "V") : ""}
-            ${lat !== null && lon !== null ? this._chip(latId, "📍 ", `${parseFloat(lat).toFixed(4)}, ${parseFloat(lon).toFixed(4)}`) : ""}
+            ${this._chip(battVId, "⚡ ", parseFloat(battV).toFixed(3) + "V")}
           </div>` : ""}
 
-        ${isRepeater && (airtime !== null || channel !== null || noise !== null || queue !== null) ? `
-          <div class="node-chip-row">
-            ${airtime  !== null ? this._chip(airtimeId, "Airtime ", parseFloat(airtime).toFixed(2) + "%") : ""}
-            ${channel  !== null ? this._chip(channelId, "Channel ", parseFloat(channel).toFixed(2) + "%") : ""}
-            ${noise    !== null ? this._chip(noiseId,   "Noise ",   noise + " dBm") : ""}
-            ${queue    !== null ? this._chip(queueId,   "Queue ",   queue) : ""}
-          </div>` : ""}
+        ${isRepeater ? `
+          ${battPct !== null ? `
+            <div class="bar-row">
+              <span class="bar-label">🔋 Battery</span>
+              <span class="bar-val clickable" data-entity="${battPctId}" style="color:${batteryColor(battPct)}">${battPct}%</span>
+            </div>
+            ${this._progressBar(battPct, batteryColor(battPct))}` : ""}
 
-        ${isRepeater && trafficCells.length ? `
-          <div class="node-traffic">
-            ${trafficCells.map(c => {
-              const v = this._val(c.id);
-              const blank = v === null || v === "unknown" || v === "unavailable";
-              return `<div class="tc"><div class="tc-label">${c.label}</div>
-                <div class="tc-val ${blank ? "dim" : c.cls} clickable" data-entity="${c.id}">${blank ? "—" : v}</div></div>`;
-            }).join("")}
-          </div>` : ""}
+          ${airtime !== null ? `
+            <div class="bar-row">
+              <span class="bar-label">📡 TX Airtime</span>
+              <span class="bar-val clickable" data-entity="${airtimeId}">${parseFloat(airtime).toFixed(1)}%</span>
+            </div>
+            ${this._progressBar(airtime, "var(--mc-blue)")}` : ""}
+
+          ${rxAirtime !== null ? `
+            <div class="bar-row">
+              <span class="bar-label">📡 RX Airtime</span>
+              <span class="bar-val clickable" data-entity="${rxAirtimeId}">${parseFloat(rxAirtime).toFixed(1)}%</span>
+            </div>
+            ${this._progressBar(rxAirtime, "var(--mc-purple)")}` : ""}
+
+          ${noise !== null || uptime !== null || txRate !== null || rxRate !== null || queue !== null ? `
+            <div class="node-chip-row">
+              ${noise   !== null ? this._chip(noiseId,  "Noise ", noise + " dBm") : ""}
+              ${uptime  !== null ? this._chip(uptimeId, "Up ",    uptime) : ""}
+              ${txRate  !== null ? this._chip(txRateId, "TX/min ", txRate) : ""}
+              ${rxRate  !== null ? this._chip(rxRateId, "RX/min ", rxRate) : ""}
+              ${queue   !== null ? this._chip(queueId,  "Queue ",  queue) : ""}
+            </div>` : ""}
+
+          ${trafficCells.length ? `
+            <div class="node-traffic">
+              ${trafficCells.map(c => {
+                const v = this._val(c.id);
+                const blank = v === null || v === "unknown" || v === "unavailable";
+                return `<div class="tc"><div class="tc-label">${c.label}</div>
+                  <div class="tc-val ${blank ? "dim" : c.cls} clickable" data-entity="${c.id}">${blank ? "—" : v}</div></div>`;
+              }).join("")}
+            </div>` : ""}
+
+          ${lat !== null && lon !== null ? this._locLink(lat, lon, latId) : ""}
+        ` : `
+          ${lat !== null && lon !== null ? this._locLink(lat, lon, latId) : ""}
+        `}
 
         ${isSensor && telemetryCells.length ? `
           <div class="node-chip-row">
@@ -546,6 +591,10 @@ const STYLES = `
   .tc { display: flex; flex-direction: column; gap: 2px; }
   .tc-label { font-size: 0.65rem; color: var(--mc-dim); }
   .tc-val { font-size: 0.95rem; font-weight: 700; }
+
+  .loc-row { display: flex; align-items: center; gap: 6px; margin: 5px 0; }
+  .map-link { font-size: 0.72rem; font-weight: 600; color: var(--mc-blue); text-decoration: none; padding: 4px 8px; border-radius: 8px; background: rgba(10,132,255,0.1); white-space: nowrap; }
+  .map-link:hover { background: rgba(10,132,255,0.2); }
 
   .empty { text-align: center; color: var(--mc-dim); font-size: 0.85rem; padding: 24px 16px; line-height: 1.7; }
 `;
