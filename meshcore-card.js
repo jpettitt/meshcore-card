@@ -128,34 +128,28 @@ class MeshcoreCard extends HTMLElement {
     return Object.values(hubs);
   }
 
-  _discoverNodes(pubkey) {
-    // Use device registry (HA 2022.4+)
-    if (this._hass.entities && this._hass.devices) {
-      return this._discoverNodesFromDevices(pubkey);
-    }
-    return [];
-  }
+  _discoverNodes() {
+    if (!this._hass.entities || !this._hass.devices) return [];
 
-  _discoverNodesFromDevices(pubkey) {
-    // Find the hub's config_entry_id and device_id via its node_count entity
-    let hubConfigEntryId = null;
-    let hubDeviceId = null;
+    // Collect device_ids that belong to hub devices (have a node_count entity)
+    const hubDeviceIds = new Set();
     for (const [entityId, info] of Object.entries(this._hass.entities)) {
-      if (entityId.includes(`meshcore_${pubkey}`) && /node_count/.test(entityId)) {
-        hubConfigEntryId = info.config_entry_id;
-        hubDeviceId = info.device_id;
-        break;
+      if (/node_count/.test(entityId) && info.device_id) hubDeviceIds.add(info.device_id);
+    }
+
+    // All meshcore devices that are not hub devices
+    const meshcoreDeviceIds = new Set();
+    for (const [, info] of Object.entries(this._hass.entities)) {
+      if (info.platform === "meshcore" && info.device_id && !hubDeviceIds.has(info.device_id)) {
+        meshcoreDeviceIds.add(info.device_id);
       }
     }
-    if (!hubConfigEntryId) return [];
 
-    // Find all devices that share this config entry (same hub), excluding the hub device itself
     const nodes = [];
-    for (const [deviceId, device] of Object.entries(this._hass.devices)) {
-      if (deviceId === hubDeviceId) continue;
-      if (!device.config_entries?.includes(hubConfigEntryId)) continue;
+    for (const deviceId of meshcoreDeviceIds) {
+      const device = this._hass.devices[deviceId];
+      if (!device) continue;
 
-      // Get node type from entity attributes
       let type = 0;
       for (const [entityId, info] of Object.entries(this._hass.entities)) {
         if (info.device_id !== deviceId) continue;
@@ -164,11 +158,7 @@ class MeshcoreCard extends HTMLElement {
         if (attrs?.node_type) { type = Number(attrs.node_type); break; }
       }
 
-      nodes.push({
-        name: device.name_by_user || device.name || deviceId,
-        type,
-        deviceId,
-      });
+      nodes.push({ name: device.name_by_user || device.name || deviceId, type, deviceId });
     }
     return nodes;
   }
@@ -288,11 +278,9 @@ class MeshcoreCard extends HTMLElement {
 
   // ── Node rendering ───────────────────────────────────────────────────────
 
-  _renderNode(pubkey, node) {
+  _renderNode(node) {
     const { name, type, deviceId } = node;
-    const p = (m) => deviceId
-      ? this._findEntityByDevice(deviceId, m)
-      : `sensor.meshcore_${pubkey}_${m}_${name}`;
+    const p = (m) => this._findEntityByDevice(deviceId, m);
 
     // Common entities (all types)
     const statusId  = p("status");
@@ -436,18 +424,17 @@ class MeshcoreCard extends HTMLElement {
       return;
     }
 
-    const body = hubs.map(hub => {
-      const nodes = this._discoverNodes(hub.pubkey)
-        .filter(n => nodesCfg[n.name] !== false);
+    const nodes = this._discoverNodes()
+      .filter(n => nodesCfg[n.name] !== false);
 
-      const nodesHtml = nodes.length
-        ? `<div class="nodes-section">
-            <div class="section-label">REMOTE NODES</div>
-            ${nodes.map(n => this._renderNode(hub.pubkey, n)).join("")}
-           </div>`
-        : "";
-      return this._renderHub(hub) + nodesHtml;
-    }).join("");
+    const nodesHtml = nodes.length
+      ? `<div class="nodes-section">
+          <div class="section-label">REMOTE NODES</div>
+          ${nodes.map(n => this._renderNode(n)).join("")}
+         </div>`
+      : "";
+
+    const body = hubs.map(hub => this._renderHub(hub)).join("") + nodesHtml;
 
     this._setBody(body);
   }
@@ -588,25 +575,25 @@ class MeshcoreCardEditor extends HTMLElement {
     return Object.values(hubs);
   }
 
-  _discoverNodes(pubkey) {
+  _discoverNodes() {
     if (!this._hass?.entities || !this._hass?.devices) return [];
 
-    let hubConfigEntryId = null;
-    let hubDeviceId = null;
+    const hubDeviceIds = new Set();
     for (const [entityId, info] of Object.entries(this._hass.entities)) {
-      if (entityId.includes(`meshcore_${pubkey}`) && /node_count/.test(entityId)) {
-        hubConfigEntryId = info.config_entry_id;
-        hubDeviceId = info.device_id;
-        break;
+      if (/node_count/.test(entityId) && info.device_id) hubDeviceIds.add(info.device_id);
+    }
+
+    const meshcoreDeviceIds = new Set();
+    for (const [, info] of Object.entries(this._hass.entities)) {
+      if (info.platform === "meshcore" && info.device_id && !hubDeviceIds.has(info.device_id)) {
+        meshcoreDeviceIds.add(info.device_id);
       }
     }
-    if (!hubConfigEntryId) return [];
 
     const nodes = [];
-    for (const [deviceId, device] of Object.entries(this._hass.devices)) {
-      if (deviceId === hubDeviceId) continue;
-      if (!device.config_entries?.includes(hubConfigEntryId)) continue;
-
+    for (const deviceId of meshcoreDeviceIds) {
+      const device = this._hass.devices[deviceId];
+      if (!device) continue;
       let type = 0;
       for (const [entityId, info] of Object.entries(this._hass.entities)) {
         if (info.device_id !== deviceId) continue;
@@ -625,26 +612,9 @@ class MeshcoreCardEditor extends HTMLElement {
     const hubsCfg  = this._config.hubs  || {};
     const nodesCfg = this._config.nodes || {};
 
-    const rows = hubs.flatMap(hub => {
+    const hubRows = hubs.map(hub => {
       const hubEnabled = hubsCfg[hub.pubkey] !== false;
-      const nodes = this._discoverNodes(hub.pubkey);
-      const nodeRows = nodes.map(n => {
-        const nodeEnabled = nodesCfg[n.name] !== false;
-        const typeLabel = NODE_TYPES[n.type] || "";
-        return `
-          <div class="toggle-row node-row" data-key="${n.name}" data-kind="node">
-            <div class="row-info">
-              <span class="row-name">${n.name.replace(/_/g, " ")}</span>
-              ${typeLabel ? `<span class="row-type">${typeLabel}</span>` : ""}
-            </div>
-            <label class="toggle-switch">
-              <input type="checkbox" ${nodeEnabled ? "checked" : ""} data-key="${n.name}" data-kind="node">
-              <span class="slider"></span>
-            </label>
-          </div>`;
-      }).join("");
-
-      return [`
+      return `
         <div class="toggle-row hub-row" data-key="${hub.pubkey}" data-kind="hub">
           <div class="row-info">
             <span class="hub-dot"></span>
@@ -655,10 +625,27 @@ class MeshcoreCardEditor extends HTMLElement {
             <input type="checkbox" ${hubEnabled ? "checked" : ""} data-key="${hub.pubkey}" data-kind="hub">
             <span class="slider"></span>
           </label>
-        </div>`,
-        nodes.length ? `<div class="node-group">${nodeRows}</div>` : ""
-      ];
+        </div>`;
     }).join("");
+
+    const allNodes = this._discoverNodes();
+    const nodeRows = allNodes.map(n => {
+      const nodeEnabled = nodesCfg[n.name] !== false;
+      const typeLabel = NODE_TYPES[n.type] || "";
+      return `
+        <div class="toggle-row node-row" data-key="${n.name}" data-kind="node">
+          <div class="row-info">
+            <span class="row-name">${n.name.replace(/_/g, " ")}</span>
+            ${typeLabel ? `<span class="row-type">${typeLabel}</span>` : ""}
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" ${nodeEnabled ? "checked" : ""} data-key="${n.name}" data-kind="node">
+            <span class="slider"></span>
+          </label>
+        </div>`;
+    }).join("");
+
+    const rows = hubRows + (allNodes.length ? `<div class="section-title">NODES</div>${nodeRows}` : "");
 
     this.innerHTML = `
       <style>
