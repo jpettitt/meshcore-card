@@ -19,7 +19,14 @@ class MeshcoreCard extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
-    this._render();
+    const fp = Object.entries(hass.states)
+      .filter(([id]) => id.includes("meshcore"))
+      .map(([id, s]) => `${id}=${s.state}@${s.last_changed}`)
+      .join("|");
+    if (fp !== this._fp) {
+      this._fp = fp;
+      this._render();
+    }
   }
 
   _moreInfo(entityId) {
