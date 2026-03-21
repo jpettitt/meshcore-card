@@ -112,18 +112,25 @@ class MeshcoreCard extends HTMLElement {
     return null;
   }
 
+  // Derive the entity ID suffix from a device name: "JPP" → "jpp", "Yuba Node" → "yuba_node"
+  static _entitySuffix(device) {
+    return (device.name_by_user || device.name || "")
+      .toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "").replace(/_+/g, "_").replace(/^_|_$/g, "");
+  }
+
   // Find an entity belonging to a specific device matching the metric name.
-  // Prefers exact suffix (_metric at end of ID), then metric followed by underscore.
-  _findEntityByDevice(deviceId, metric) {
+  // With nodeSuffix: prefers _metric_nodeSuffix$ (EOL), then _metric$ (EOL).
+  _findEntityByDevice(deviceId, metric, nodeSuffix) {
     if (!deviceId || !this._hass.entities) return null;
-    const suffix = `_${metric}`;
-    let partial = null;
+    const withSuffix = nodeSuffix ? `_${metric}_${nodeSuffix}` : null;
+    const bare = `_${metric}`;
+    let bareFallback = null;
     for (const [entityId, info] of Object.entries(this._hass.entities)) {
       if (info.device_id !== deviceId) continue;
-      if (entityId.endsWith(suffix)) return entityId;
-      if (!partial && entityId.includes(suffix + "_")) partial = entityId;
+      if (withSuffix && entityId.endsWith(withSuffix)) return entityId;
+      if (!bareFallback && entityId.endsWith(bare)) bareFallback = entityId;
     }
-    return partial;
+    return bareFallback;
   }
 
   // ── Discovery ────────────────────────────────────────────────────────────
@@ -162,7 +169,7 @@ class MeshcoreCard extends HTMLElement {
       const device = this._hass.devices[deviceId];
       if (!device) continue;
 
-      nodes.push({ name: device.name_by_user || device.name || deviceId, deviceId });
+      nodes.push({ name: device.name_by_user || device.name || deviceId, deviceId, entitySuffix: MeshcoreCard._entitySuffix(device) });
     }
     return nodes;
   }
@@ -293,8 +300,8 @@ class MeshcoreCard extends HTMLElement {
   // ── Node rendering ───────────────────────────────────────────────────────
 
   _renderNode(node) {
-    const { name, deviceId } = node;
-    const p = (m) => this._findEntityByDevice(deviceId, m);
+    const { name, deviceId, entitySuffix } = node;
+    const p = (m) => this._findEntityByDevice(deviceId, m, entitySuffix);
 
     // Common entities (all types)
     const statusId  = p("status");
@@ -303,7 +310,7 @@ class MeshcoreCard extends HTMLElement {
     const pathId    = p("path_length");
     const routeId   = p("routing_path");
     const advertId  = p("last_advert");
-    const battPctId = p("battery_percentage") || p("battery_level") || p("battery_percent") || p("battery");
+    const battPctId = p("battery_percentage") || p("battery_level") || p("battery_percent") || p("ch1_battery") || p("battery");
     const battVId   = p("battery_voltage");
     const latId     = p("latitude");
     const lonId     = p("longitude");
