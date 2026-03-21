@@ -149,13 +149,6 @@ class MeshcoreCard extends HTMLElement {
     const lonEntity         = e("longitude");
     const rateLimEntity     = e("request_rate_limiter");
     const ch1VEntity        = e("ch1_voltage");
-    // Traffic (repeater nodes)
-    const sentEntity        = e("tx") || e("messages_sent") || e("sent");
-    const receivedEntity    = e("rx") || e("messages_received") || e("received");
-    const relayedEntity     = e("relayed");
-    const canceledEntity    = e("canceled");
-    const duplicateEntity   = e("duplicate");
-    const malformedEntity   = e("malformed");
 
     // Auto-discover MQTT broker entities
     const mqttEntities = Object.keys(this._hass.states)
@@ -183,7 +176,6 @@ class MeshcoreCard extends HTMLElement {
     const displayName = name.replace(/_/g, " ");
     const battColor = this._batteryColor(battPct);
     const showRf = freq || bw || sf || txPower;
-    const showTraffic = sentEntity || receivedEntity || relayedEntity || canceledEntity || duplicateEntity || malformedEntity;
 
     return `
       <div class="hub-block">
@@ -249,19 +241,6 @@ class MeshcoreCard extends HTMLElement {
           }).join("")}
         </div>` : ""}
 
-        ${showTraffic ? `
-        <div class="traffic-section">
-          <div class="traffic-header">NETWORK TRAFFIC</div>
-          <div class="traffic-grid">
-            <div class="traffic-cell"><div class="traffic-label">Sent</div>${this._statVal(sentEntity)}</div>
-            <div class="traffic-cell"><div class="traffic-label">Received</div>${this._statVal(receivedEntity)}</div>
-            <div class="traffic-cell"><div class="traffic-label">Relayed</div>${this._statVal(relayedEntity, "blue")}</div>
-            <div class="traffic-cell"><div class="traffic-label">Canceled</div>${this._statVal(canceledEntity, "red")}</div>
-            <div class="traffic-cell"><div class="traffic-label">Duplicate</div>${this._statVal(duplicateEntity, "yellow")}</div>
-            <div class="traffic-cell"><div class="traffic-label">Malformed</div>${this._statVal(malformedEntity, "red")}</div>
-          </div>
-        </div>` : ""}
-
       </div>`;
   }
 
@@ -310,7 +289,8 @@ class MeshcoreCard extends HTMLElement {
   _render() {
     if (!this._hass || !this._config) return;
 
-    const hubs = this._discoverHubs();
+    let hubs = this._discoverHubs();
+    if (this._config.hub) hubs = hubs.filter(h => h.pubkey === this._config.hub);
     let body = hubs.length === 0
       ? `<div class="empty">No MeshCore hubs found.<br>Check the meshcore integration is installed.</div>`
       : hubs.map(hub => {
@@ -504,7 +484,60 @@ class MeshcoreCard extends HTMLElement {
 }
 
 class MeshcoreCardEditor extends HTMLElement {
-  setConfig(config) { this._config = config; }
+  setConfig(config) {
+    this._config = { ...config };
+    this._renderEditor();
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    this._renderEditor();
+  }
+
+  _discoverHubs() {
+    if (!this._hass) return [];
+    const hubs = {};
+    const pattern = /^sensor\.meshcore_([a-f0-9]+)_node_count(?:_(.+))?$/;
+    for (const id of Object.keys(this._hass.states)) {
+      const m = id.match(pattern);
+      if (m && !hubs[m[1]]) hubs[m[1]] = { pubkey: m[1], name: (m[2] || m[1]).replace(/_/g, " ") };
+    }
+    return Object.values(hubs);
+  }
+
+  _renderEditor() {
+    if (!this._config) return;
+    const hubs = this._discoverHubs();
+    const selected = this._config.hub || "";
+
+    this.innerHTML = `
+      <style>
+        .editor { padding: 12px 16px; font-family: var(--paper-font-body1_-_font-family, system-ui, sans-serif); }
+        label { display: block; font-size: 0.8rem; color: var(--secondary-text-color); margin-bottom: 4px; margin-top: 12px; }
+        select {
+          width: 100%; padding: 8px 10px;
+          border-radius: 8px;
+          border: 1px solid var(--divider-color, rgba(0,0,0,0.12));
+          background: var(--card-background-color);
+          color: var(--primary-text-color);
+          font-size: 0.9rem;
+        }
+        .hint { font-size: 0.72rem; color: var(--secondary-text-color); margin-top: 4px; }
+      </style>
+      <div class="editor">
+        <label>Hub</label>
+        <select id="hub-select">
+          <option value="">— All hubs —</option>
+          ${hubs.map(h => `<option value="${h.pubkey}" ${h.pubkey === selected ? "selected" : ""}>${h.name} (${h.pubkey})</option>`).join("")}
+        </select>
+        ${hubs.length === 0 ? `<div class="hint">No hubs detected yet — save and reload.</div>` : ""}
+      </div>`;
+
+    this.querySelector("#hub-select").addEventListener("change", (e) => {
+      this._config = { ...this._config, hub: e.target.value || undefined };
+      this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config } }));
+    });
+  }
 }
 
 // Guard against re-registration (prevents "already used" errors)
