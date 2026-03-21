@@ -304,8 +304,8 @@ class MeshcoreCard extends HTMLElement {
     const lonId     = p("longitude");
 
     // Repeater / Room Server extras (type 2 & 3)
-    const sentId     = [p("tx"), p("messages_sent"), p("sent")].find(id => this._exists(id)) || p("tx");
-    const receivedId = [p("rx"), p("messages_received"), p("received")].find(id => this._exists(id)) || p("rx");
+    const sentId     = p("nb_sent");
+    const receivedId = p("nb_recv");
     const relayedId  = p("relayed");
     const canceledId = p("canceled");
     const dupId      = p("duplicate");
@@ -419,7 +419,7 @@ class MeshcoreCard extends HTMLElement {
 
           ${noise !== null || uptime !== null || txRate !== null || rxRate !== null || queue !== null ? `
             <div class="node-chip-row">
-              ${noise   !== null ? this._chip(noiseId,  "Noise ", noise + " dBm") : ""}
+              ${noise   !== null ? this._chip(noiseId,  "Noise Floor ", noise + " dBm") : ""}
               ${uptime  !== null ? this._chip(uptimeId, "Up ",    uptime) : ""}
               ${txRate  !== null ? this._chip(txRateId, "TX/min ", txRate) : ""}
               ${rxRate  !== null ? this._chip(rxRateId, "RX/min ", rxRate) : ""}
