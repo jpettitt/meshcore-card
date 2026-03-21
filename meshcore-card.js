@@ -35,6 +35,15 @@ function batteryClass(pct) {
   return "red";
 }
 
+function formatUptime(days) {
+  const v = parseFloat(days);
+  if (isNaN(v) || v < 0) return null;
+  const d = Math.floor(v);
+  const h = Math.floor((v - d) * 24);
+  if (d > 0) return `${d}d ${h}h`;
+  return `${h}h`;
+}
+
 function rssiClass(rssi) {
   const v = Number(rssi);
   if (isNaN(v)) return "dim";
@@ -300,8 +309,8 @@ class MeshcoreCard extends HTMLElement {
     const relayedId  = p("relayed");
     const canceledId = p("canceled");
     const dupId      = p("duplicate");
-    const airtimeId  = p("airtime");
-    const rxAirtimeId = p("rx_airtime");
+    const airtimeId   = p("airtime_utilization");
+    const rxAirtimeId = p("rx_airtime_utilization");
     const channelId  = p("channel_utilization");
     const noiseId    = p("noise_floor");
     const queueId    = p("queue_length");
@@ -330,7 +339,7 @@ class MeshcoreCard extends HTMLElement {
     const lastSeen = formatLastSeen(lastAdv);
 
     // Detect node role by entity presence — no type attribute needed
-    const isRepeater = !!(airtimeId || noiseId || rxAirtimeId);
+    const isRepeater = !!(airtimeId || rxAirtimeId || noiseId);
     const isSensor   = !isRepeater && !!(p("temperature") || p("humidity") || p("illuminance"));
 
     // Repeater traffic — only show entities that exist
@@ -347,7 +356,8 @@ class MeshcoreCard extends HTMLElement {
     const channel   = this._val(channelId);
     const noise     = this._val(noiseId);
     const queue     = this._val(queueId);
-    const uptime    = this._val(uptimeId);
+    const uptimeRaw = this._val(uptimeId);
+    const uptime    = formatUptime(uptimeRaw);
     const txRate    = txRateId ? this._val(txRateId) : null;
     const rxRate    = rxRateId ? this._val(rxRateId) : null;
 
