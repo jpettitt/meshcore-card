@@ -105,6 +105,15 @@ class MeshcoreCard extends HTMLElement {
     return null;
   }
 
+  // Find an entity belonging to a specific device that contains the metric name
+  _findEntityByDevice(deviceId, metric) {
+    if (!deviceId || !this._hass.entities) return null;
+    for (const [entityId, info] of Object.entries(this._hass.entities)) {
+      if (info.device_id === deviceId && entityId.includes(`_${metric}`)) return entityId;
+    }
+    return null;
+  }
+
   // ── Discovery ────────────────────────────────────────────────────────────
 
   _discoverHubs() {
@@ -120,17 +129,51 @@ class MeshcoreCard extends HTMLElement {
   }
 
   _discoverNodes(pubkey) {
-    const nodes = {};
-    const re = new RegExp(`^sensor\\.meshcore_${pubkey}_status_(.+)$`);
-    for (const id of Object.keys(this._hass.states)) {
-      const m = id.match(re);
-      if (m) {
-        const nodeName = m[1];
-        const typeAttr = this._attr(id, "type");
-        nodes[nodeName] = { name: nodeName, type: Number(typeAttr) || 0 };
+    // Use device registry (HA 2022.4+)
+    if (this._hass.entities && this._hass.devices) {
+      return this._discoverNodesFromDevices(pubkey);
+    }
+    return [];
+  }
+
+  _discoverNodesFromDevices(pubkey) {
+    // Find device_ids that own hub entities (node_count)
+    const hubDeviceIds = new Set();
+    for (const [entityId, info] of Object.entries(this._hass.entities)) {
+      if (entityId.includes(`meshcore_${pubkey}`) && /node_count/.test(entityId) && info.device_id) {
+        hubDeviceIds.add(info.device_id);
       }
     }
-    return Object.values(nodes);
+
+    // Group all other meshcore entities for this pubkey by device_id
+    const deviceMap = {};
+    for (const [entityId, info] of Object.entries(this._hass.entities)) {
+      if (!entityId.includes(`meshcore_${pubkey}`) || !info.device_id) continue;
+      if (hubDeviceIds.has(info.device_id)) continue;
+      if (!deviceMap[info.device_id]) deviceMap[info.device_id] = [];
+      deviceMap[info.device_id].push(entityId);
+    }
+
+    const nodes = [];
+    for (const [deviceId, entityIds] of Object.entries(deviceMap)) {
+      const device = this._hass.devices[deviceId];
+      if (!device) continue;
+
+      // Try to get node type from any entity's attributes
+      let type = 0;
+      for (const entityId of entityIds) {
+        const attrs = this._hass.states[entityId]?.attributes;
+        if (attrs?.type) { type = Number(attrs.type); break; }
+        if (attrs?.node_type) { type = Number(attrs.node_type); break; }
+      }
+
+      nodes.push({
+        name: device.name_by_user || device.name || deviceId,
+        type,
+        deviceId,
+      });
+    }
+    return nodes;
   }
 
   _hubEntity(pubkey, hubName, metric) {
@@ -249,8 +292,10 @@ class MeshcoreCard extends HTMLElement {
   // ── Node rendering ───────────────────────────────────────────────────────
 
   _renderNode(pubkey, node) {
-    const { name, type } = node;
-    const p = (m) => `sensor.meshcore_${pubkey}_${m}_${name}`;
+    const { name, type, deviceId } = node;
+    const p = (m) => deviceId
+      ? this._findEntityByDevice(deviceId, m)
+      : `sensor.meshcore_${pubkey}_${m}_${name}`;
 
     // Common entities (all types)
     const statusId  = p("status");
@@ -265,8 +310,8 @@ class MeshcoreCard extends HTMLElement {
     const lonId     = p("longitude");
 
     // Repeater / Room Server extras (type 2 & 3)
-    const sentId     = p("tx") || p("messages_sent") || p("sent");
-    const receivedId = p("rx") || p("messages_received") || p("received");
+    const sentId     = [p("tx"), p("messages_sent"), p("sent")].find(id => this._exists(id)) || p("tx");
+    const receivedId = [p("rx"), p("messages_received"), p("received")].find(id => this._exists(id)) || p("rx");
     const relayedId  = p("relayed");
     const canceledId = p("canceled");
     const dupId      = p("duplicate");
@@ -547,17 +592,36 @@ class MeshcoreCardEditor extends HTMLElement {
   }
 
   _discoverNodes(pubkey) {
-    if (!this._hass) return [];
-    const nodes = {};
-    const re = new RegExp(`^sensor\\.meshcore_${pubkey}_status_(.+)$`);
-    for (const id of Object.keys(this._hass.states)) {
-      const m = id.match(re);
-      if (m) {
-        const type = Number(this._hass.states[id]?.attributes?.type) || 0;
-        nodes[m[1]] = { name: m[1], type };
+    if (!this._hass?.entities || !this._hass?.devices) return [];
+
+    const hubDeviceIds = new Set();
+    for (const [entityId, info] of Object.entries(this._hass.entities)) {
+      if (entityId.includes(`meshcore_${pubkey}`) && /node_count/.test(entityId) && info.device_id) {
+        hubDeviceIds.add(info.device_id);
       }
     }
-    return Object.values(nodes);
+
+    const deviceMap = {};
+    for (const [entityId, info] of Object.entries(this._hass.entities)) {
+      if (!entityId.includes(`meshcore_${pubkey}`) || !info.device_id) continue;
+      if (hubDeviceIds.has(info.device_id)) continue;
+      if (!deviceMap[info.device_id]) deviceMap[info.device_id] = [];
+      deviceMap[info.device_id].push(entityId);
+    }
+
+    const nodes = [];
+    for (const [deviceId, entityIds] of Object.entries(deviceMap)) {
+      const device = this._hass.devices[deviceId];
+      if (!device) continue;
+      let type = 0;
+      for (const entityId of entityIds) {
+        const attrs = this._hass.states[entityId]?.attributes;
+        if (attrs?.type) { type = Number(attrs.type); break; }
+        if (attrs?.node_type) { type = Number(attrs.node_type); break; }
+      }
+      nodes.push({ name: device.name_by_user || device.name || deviceId, type, deviceId });
+    }
+    return nodes;
   }
 
   _renderEditor() {
