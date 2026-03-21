@@ -395,32 +395,33 @@ class MeshcoreCard extends HTMLElement {
         ${route && !["unknown","unavailable"].includes(route) ? `
           <div class="node-route">↝ ${route}</div>` : ""}
 
+        ${battPct !== null ? `
+          <div class="bar-row">
+            <span class="bar-label">🔋 Battery</span>
+            <span class="bar-val clickable" data-entity="${battPctId}" style="color:${batteryColor(battPct)}">${battPct}%</span>
+          </div>
+          ${this._progressBar(battPct, batteryColor(battPct))}` : ""}
+
         ${battV !== null ? `
           <div class="node-chip-row">
             ${this._chip(battVId, "⚡ ", parseFloat(battV).toFixed(3) + "V")}
           </div>` : ""}
 
         ${isRepeater ? `
-          ${battPct !== null ? `
-            <div class="bar-row">
-              <span class="bar-label">🔋 Battery</span>
-              <span class="bar-val clickable" data-entity="${battPctId}" style="color:${batteryColor(battPct)}">${battPct}%</span>
-            </div>
-            ${this._progressBar(battPct, batteryColor(battPct))}` : ""}
 
           ${airtime !== null ? `
             <div class="bar-row">
               <span class="bar-label">📡 TX Airtime</span>
               <span class="bar-val clickable" data-entity="${airtimeId}">${parseFloat(airtime).toFixed(1)}%</span>
             </div>
-            ${this._progressBar(airtime, "var(--mc-blue)")}` : ""}
+            ${this._progressBar(airtime, "var(--primary-color)")}` : ""}
 
           ${rxAirtime !== null ? `
             <div class="bar-row">
               <span class="bar-label">📡 RX Airtime</span>
               <span class="bar-val clickable" data-entity="${rxAirtimeId}">${parseFloat(rxAirtime).toFixed(1)}%</span>
             </div>
-            ${this._progressBar(rxAirtime, "var(--mc-purple)")}` : ""}
+            ${this._progressBar(rxAirtime, "var(--accent-color)")}` : ""}
 
           ${noise !== null || uptime !== null || txRate !== null || rxRate !== null || queue !== null ? `
             <div class="node-chip-row">
