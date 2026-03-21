@@ -34,9 +34,24 @@ class MeshcoreCard extends HTMLElement {
     return s ? s.attributes[attr] : null;
   }
 
+  // Find the first entity matching a prefix (handles optional _nodename suffix)
+  _findEntity(prefix) {
+    const exact = this._hass.states[prefix];
+    if (exact) return prefix;
+    for (const entityId of Object.keys(this._hass.states)) {
+      if (entityId.startsWith(prefix + "_")) return entityId;
+    }
+    return null;
+  }
+
+  _valByPrefix(prefix) {
+    const id = this._findEntity(prefix);
+    return id ? this._val(id) : null;
+  }
+
   _discoverHubs() {
     const hubs = {};
-    const pattern = /^sensor\.meshcore_([a-f0-9]+)_node_count$/;
+    const pattern = /^sensor\.meshcore_([a-f0-9]+)_node_count(?:_.+)?$/;
     for (const entityId of Object.keys(this._hass.states)) {
       const m = entityId.match(pattern);
       if (m) hubs[m[1]] = m[1];
@@ -94,13 +109,14 @@ class MeshcoreCard extends HTMLElement {
   }
 
   _renderHub(pubkey) {
-    const status = this._val(`sensor.meshcore_${pubkey}_node_status`) || "unknown";
-    const battery = this._val(`sensor.meshcore_${pubkey}_battery_percentage`);
-    const nodeCount = this._val(`sensor.meshcore_${pubkey}_node_count`);
-    const freq = this._val(`sensor.meshcore_${pubkey}_frequency`);
-    const bw = this._val(`sensor.meshcore_${pubkey}_bandwidth`);
-    const sf = this._val(`sensor.meshcore_${pubkey}_spreading_factor`);
-    const txPower = this._val(`sensor.meshcore_${pubkey}_tx_power`);
+    const pfx = (m) => `sensor.meshcore_${pubkey}_${m}`;
+    const status = this._valByPrefix(pfx("node_status")) || "unknown";
+    const battery = this._valByPrefix(pfx("battery_percentage"));
+    const nodeCount = this._valByPrefix(pfx("node_count"));
+    const freq = this._valByPrefix(pfx("frequency"));
+    const bw = this._valByPrefix(pfx("bandwidth"));
+    const sf = this._valByPrefix(pfx("spreading_factor"));
+    const txPower = this._valByPrefix(pfx("tx_power"));
     const isOnline = status === "online" || status === "connected" || status === "1" || status === "true";
 
     return `
