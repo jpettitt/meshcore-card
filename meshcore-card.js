@@ -384,9 +384,9 @@ class MeshcoreCard extends HTMLElement {
             ${isRepeater ? `<span class="type-badge">Repeater</span>` : isSensor ? `<span class="type-badge">Sensor</span>` : ""}
           </div>
           <div class="node-right">
-            ${rssi !== null ? `<span class="badge ${rssiClass(rssi)} clickable" data-entity="${rssiId}">${rssi} dBm</span>` : ""}
-            ${snr  !== null ? `<span class="badge clickable" data-entity="${snrId}">${snr} dB</span>` : ""}
-            ${battPct !== null ? `<span class="badge ${batteryClass(battPct)} clickable" data-entity="${battPctId}">${battPct}%</span>` : ""}
+            ${rssi !== null ? `<span class="badge ${rssiClass(rssi)} clickable" data-entity="${rssiId}">RSSI ${rssi} dBm</span>` : ""}
+            ${snr  !== null ? `<span class="badge clickable" data-entity="${snrId}">SNR ${snr} dB</span>` : ""}
+            ${battPct !== null && !isRepeater ? `<span class="badge ${batteryClass(battPct)} clickable" data-entity="${battPctId}">${battPct}%</span>` : ""}
             ${pathLen !== null ? `<span class="badge clickable" data-entity="${pathId}">${pathLen}↑</span>` : ""}
             ${lastSeen ? `<span class="badge dim">${lastSeen}</span>` : ""}
           </div>
