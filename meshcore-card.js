@@ -303,7 +303,7 @@ class MeshcoreCard extends HTMLElement {
     const pathId    = p("path_length");
     const routeId   = p("routing_path");
     const advertId  = p("last_advert");
-    const battPctId = p("battery_percentage") || p("battery_level") || p("battery_percent");
+    const battPctId = p("battery_percentage") || p("battery_level") || p("battery_percent") || p("battery");
     const battVId   = p("battery_voltage");
     const latId     = p("latitude");
     const lonId     = p("longitude");
