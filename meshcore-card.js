@@ -404,7 +404,6 @@ class MeshcoreCard extends HTMLElement {
           <div class="node-right">
             ${rssi !== null ? `<span class="badge ${rssiClass(rssi)} clickable" data-entity="${rssiId}">RSSI ${rssi} dBm</span>` : ""}
             ${snr  !== null ? `<span class="badge clickable" data-entity="${snrId}">SNR ${snr} dB</span>` : ""}
-            ${battPct !== null && !isRepeater ? `<span class="badge ${batteryClass(battPct)} clickable" data-entity="${battPctId}">${battPct}%</span>` : ""}
             ${pathLen !== null ? `<span class="badge clickable" data-entity="${pathId}">${pathLen}↑</span>` : ""}
             ${lastSeen ? `<span class="badge dim">${lastSeen}</span>` : ""}
           </div>
@@ -416,11 +415,14 @@ class MeshcoreCard extends HTMLElement {
         ${battPct !== null ? `
           <div class="bar-row">
             <span class="bar-label">🔋 Battery</span>
-            <span class="bar-val clickable" data-entity="${battPctId}" style="color:${batteryColor(battPct)}">${battPct}%</span>
+            <span class="bar-label-right">
+              ${battV !== null ? `<span class="clickable" data-entity="${battVId}">⚡ ${parseFloat(battV).toFixed(3)}V</span>` : ""}
+              <span class="bar-val clickable" data-entity="${battPctId}" style="color:${batteryColor(battPct)}">${battPct}%</span>
+            </span>
           </div>
           ${this._progressBar(battPct, batteryColor(battPct))}` : ""}
 
-        ${battV !== null ? `
+        ${battV !== null && battPct === null ? `
           <div class="node-chip-row">
             ${this._chip(battVId, "⚡ ", parseFloat(battV).toFixed(3) + "V")}
           </div>` : ""}
@@ -549,6 +551,7 @@ const STYLES = `
   /* Progress bars */
   .bar-row { display: flex; align-items: center; justify-content: space-between; margin: 10px 0 3px; font-size: var(--paper-font-caption_-_font-size, 12px); }
   .bar-label { display: flex; align-items: center; gap: 5px; color: var(--secondary-text-color); }
+  .bar-label-right { display: flex; align-items: center; gap: 8px; }
   .bar-val { font-weight: 600; color: var(--primary-text-color); }
   .bar-track { height: 5px; border-radius: 3px; background: var(--secondary-background-color); overflow: hidden; margin-bottom: 8px; }
   .bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
