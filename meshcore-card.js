@@ -23,9 +23,9 @@ class MeshcoreCard extends HTMLElement {
   }
 
   _moreInfo(entityId) {
-    this.dispatchEvent(new CustomEvent("hass-more-info", {
-      bubbles: true, composed: true, detail: { entityId },
-    }));
+    const event = new Event("hass-more-info", { bubbles: true, composed: true });
+    event.detail = { entityId };
+    this.dispatchEvent(event);
   }
 
   _val(entityId) {
