@@ -137,31 +137,28 @@ class MeshcoreCard extends HTMLElement {
   }
 
   _discoverNodesFromDevices(pubkey) {
-    // Find device_ids that own hub entities (node_count)
-    const hubDeviceIds = new Set();
+    // Find the hub's config_entry_id and device_id via its node_count entity
+    let hubConfigEntryId = null;
+    let hubDeviceId = null;
     for (const [entityId, info] of Object.entries(this._hass.entities)) {
-      if (entityId.includes(`meshcore_${pubkey}`) && /node_count/.test(entityId) && info.device_id) {
-        hubDeviceIds.add(info.device_id);
+      if (entityId.includes(`meshcore_${pubkey}`) && /node_count/.test(entityId)) {
+        hubConfigEntryId = info.config_entry_id;
+        hubDeviceId = info.device_id;
+        break;
       }
     }
+    if (!hubConfigEntryId) return [];
 
-    // Group all other meshcore entities for this pubkey by device_id
-    const deviceMap = {};
-    for (const [entityId, info] of Object.entries(this._hass.entities)) {
-      if (!entityId.includes(`meshcore_${pubkey}`) || !info.device_id) continue;
-      if (hubDeviceIds.has(info.device_id)) continue;
-      if (!deviceMap[info.device_id]) deviceMap[info.device_id] = [];
-      deviceMap[info.device_id].push(entityId);
-    }
-
+    // Find all devices that share this config entry (same hub), excluding the hub device itself
     const nodes = [];
-    for (const [deviceId, entityIds] of Object.entries(deviceMap)) {
-      const device = this._hass.devices[deviceId];
-      if (!device) continue;
+    for (const [deviceId, device] of Object.entries(this._hass.devices)) {
+      if (deviceId === hubDeviceId) continue;
+      if (!device.config_entries?.includes(hubConfigEntryId)) continue;
 
-      // Try to get node type from any entity's attributes
+      // Get node type from entity attributes
       let type = 0;
-      for (const entityId of entityIds) {
+      for (const [entityId, info] of Object.entries(this._hass.entities)) {
+        if (info.device_id !== deviceId) continue;
         const attrs = this._hass.states[entityId]?.attributes;
         if (attrs?.type) { type = Number(attrs.type); break; }
         if (attrs?.node_type) { type = Number(attrs.node_type); break; }
@@ -594,27 +591,25 @@ class MeshcoreCardEditor extends HTMLElement {
   _discoverNodes(pubkey) {
     if (!this._hass?.entities || !this._hass?.devices) return [];
 
-    const hubDeviceIds = new Set();
+    let hubConfigEntryId = null;
+    let hubDeviceId = null;
     for (const [entityId, info] of Object.entries(this._hass.entities)) {
-      if (entityId.includes(`meshcore_${pubkey}`) && /node_count/.test(entityId) && info.device_id) {
-        hubDeviceIds.add(info.device_id);
+      if (entityId.includes(`meshcore_${pubkey}`) && /node_count/.test(entityId)) {
+        hubConfigEntryId = info.config_entry_id;
+        hubDeviceId = info.device_id;
+        break;
       }
     }
-
-    const deviceMap = {};
-    for (const [entityId, info] of Object.entries(this._hass.entities)) {
-      if (!entityId.includes(`meshcore_${pubkey}`) || !info.device_id) continue;
-      if (hubDeviceIds.has(info.device_id)) continue;
-      if (!deviceMap[info.device_id]) deviceMap[info.device_id] = [];
-      deviceMap[info.device_id].push(entityId);
-    }
+    if (!hubConfigEntryId) return [];
 
     const nodes = [];
-    for (const [deviceId, entityIds] of Object.entries(deviceMap)) {
-      const device = this._hass.devices[deviceId];
-      if (!device) continue;
+    for (const [deviceId, device] of Object.entries(this._hass.devices)) {
+      if (deviceId === hubDeviceId) continue;
+      if (!device.config_entries?.includes(hubConfigEntryId)) continue;
+
       let type = 0;
-      for (const entityId of entityIds) {
+      for (const [entityId, info] of Object.entries(this._hass.entities)) {
+        if (info.device_id !== deviceId) continue;
         const attrs = this._hass.states[entityId]?.attributes;
         if (attrs?.type) { type = Number(attrs.type); break; }
         if (attrs?.node_type) { type = Number(attrs.node_type); break; }
