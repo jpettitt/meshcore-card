@@ -525,8 +525,7 @@ const STYLES = `
   .nodes-section { margin-top: 8px; }
   .section-label { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.1em; color: var(--mc-dim); padding: 6px 2px 4px; }
 
-  .node-block { padding: 8px 8px 6px; border-radius: 10px; margin-bottom: 4px; transition: background 0.15s; }
-  .node-block:hover { background: var(--mc-surface); }
+  .node-block { padding: 10px 12px 8px; border-radius: 10px; margin-bottom: 6px; border: 1px solid var(--mc-border); background: var(--mc-surface); }
   .node-offline { opacity: 0.5; }
 
   .node-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px; }
@@ -561,7 +560,14 @@ class MeshcoreCardEditor extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
-    this._renderEditor();
+    // Only re-render when the set of discovered hubs/nodes changes, not on every state update
+    const hubs = this._discoverHubs();
+    const nodes = this._discoverNodes();
+    const fp = hubs.map(h => h.pubkey).join(",") + "|" + nodes.map(n => n.name).join(",");
+    if (fp !== this._discoveryFp) {
+      this._discoveryFp = fp;
+      this._renderEditor();
+    }
   }
 
   _discoverHubs() {
