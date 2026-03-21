@@ -3,8 +3,6 @@
  * Displays hub and node statistics from the meshcore integration
  */
 
-const NODE_TYPES = { 1: "Client", 2: "Repeater", 3: "Room Server", 4: "Sensor" };
-
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function isOnlineState(v) {
@@ -150,15 +148,7 @@ class MeshcoreCard extends HTMLElement {
       const device = this._hass.devices[deviceId];
       if (!device) continue;
 
-      let type = 0;
-      for (const [entityId, info] of Object.entries(this._hass.entities)) {
-        if (info.device_id !== deviceId) continue;
-        const attrs = this._hass.states[entityId]?.attributes;
-        if (attrs?.type) { type = Number(attrs.type); break; }
-        if (attrs?.node_type) { type = Number(attrs.node_type); break; }
-      }
-
-      nodes.push({ name: device.name_by_user || device.name || deviceId, type, deviceId });
+      nodes.push({ name: device.name_by_user || device.name || deviceId, deviceId });
     }
     return nodes;
   }
@@ -289,7 +279,7 @@ class MeshcoreCard extends HTMLElement {
   // ── Node rendering ───────────────────────────────────────────────────────
 
   _renderNode(node) {
-    const { name, type, deviceId } = node;
+    const { name, deviceId } = node;
     const p = (m) => this._findEntityByDevice(deviceId, m);
 
     // Common entities (all types)
@@ -338,10 +328,10 @@ class MeshcoreCard extends HTMLElement {
 
     const online   = isOnlineState(status);
     const lastSeen = formatLastSeen(lastAdv);
-    const typeLabel = NODE_TYPES[type] || (type ? `Type ${type}` : "");
 
-    const isRepeater   = type === 2 || type === 3;
-    const isSensor     = type === 4;
+    // Detect node role by entity presence — no type attribute needed
+    const isRepeater = !!(airtimeId || noiseId || rxAirtimeId);
+    const isSensor   = !isRepeater && !!(p("temperature") || p("humidity") || p("illuminance"));
 
     // Repeater traffic — only show entities that exist
     const trafficCells = [
@@ -376,7 +366,7 @@ class MeshcoreCard extends HTMLElement {
           <div class="node-left">
             <span class="status-dot ${online ? "dot-online" : "dot-offline"}"></span>
             <span class="node-name clickable" data-entity="${statusId}">${name.replace(/_/g, " ")}</span>
-            ${typeLabel ? `<span class="type-badge">${typeLabel}</span>` : ""}
+            ${isRepeater ? `<span class="type-badge">Repeater</span>` : isSensor ? `<span class="type-badge">Sensor</span>` : ""}
           </div>
           <div class="node-right">
             ${rssi !== null ? `<span class="badge ${rssiClass(rssi)} clickable" data-entity="${rssiId}">${rssi} dBm</span>` : ""}
@@ -649,14 +639,7 @@ class MeshcoreCardEditor extends HTMLElement {
     for (const deviceId of meshcoreDeviceIds) {
       const device = this._hass.devices[deviceId];
       if (!device) continue;
-      let type = 0;
-      for (const [entityId, info] of Object.entries(this._hass.entities)) {
-        if (info.device_id !== deviceId) continue;
-        const attrs = this._hass.states[entityId]?.attributes;
-        if (attrs?.type) { type = Number(attrs.type); break; }
-        if (attrs?.node_type) { type = Number(attrs.node_type); break; }
-      }
-      nodes.push({ name: device.name_by_user || device.name || deviceId, type, deviceId });
+      nodes.push({ name: device.name_by_user || device.name || deviceId, deviceId });
     }
     return nodes;
   }
@@ -686,12 +669,10 @@ class MeshcoreCardEditor extends HTMLElement {
     const allNodes = this._discoverNodes();
     const nodeRows = allNodes.map(n => {
       const nodeEnabled = nodesCfg[n.name] !== false;
-      const typeLabel = NODE_TYPES[n.type] || "";
       return `
         <div class="toggle-row node-row" data-key="${n.name}" data-kind="node">
           <div class="row-info">
             <span class="row-name">${n.name.replace(/_/g, " ")}</span>
-            ${typeLabel ? `<span class="row-type">${typeLabel}</span>` : ""}
           </div>
           <label class="toggle-switch">
             <input type="checkbox" ${nodeEnabled ? "checked" : ""} data-key="${n.name}" data-kind="node">
