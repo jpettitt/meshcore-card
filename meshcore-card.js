@@ -300,7 +300,7 @@ class MeshcoreCard extends HTMLElement {
           <div class="mqtt-row">
             ${mqttIds.map(id => {
               const v   = this._val(id);
-              const lbl = (this._attr(id, "friendly_name") || id).replace(/meshcore\s+\w+\s*/i, "").replace(/_/g, " ").trim();
+              const lbl = this._attr(id, "server") || (this._attr(id, "friendly_name") || id).replace(/meshcore\s+\w+\s*/i, "").replace(/_/g, " ").trim();
               const ok  = isOnlineState(v);
               return `<span class="mqtt-pill ${ok ? "ok" : "err"} clickable" data-entity="${id}">${lbl}</span>`;
             }).join("")}
