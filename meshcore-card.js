@@ -234,11 +234,12 @@ class MeshcoreCard extends HTMLElement {
   _renderHub(hub) {
     const { pubkey, name } = hub;
     const e = (m) => this._hubEntity(pubkey, name, m);
+    const hubCfg = this._hubCfg(pubkey);
 
     const statusId    = e("node_status");
     const countId     = hub.nodeCountEntity;
-    const battPctId   = e("battery_percentage");
-    const battVId     = e("battery_voltage");
+    const battPctId   = hubCfg.battery_entity || e("battery_percentage");
+    const battVId     = hubCfg.voltage_entity  || e("battery_voltage");
     const freqId      = e("frequency");
     const bwId        = e("bandwidth");
     const sfId        = e("spreading_factor");
@@ -271,15 +272,16 @@ class MeshcoreCard extends HTMLElement {
     const showRf   = freq || bw || sf || txPow;
 
     return `
-      <div class="hub-block">
-        <div class="hub-header-row">
-          <div class="hub-title-group">
-            <span class="hub-pubkey dim clickable" data-entity="${statusId || countId}">${pubkey}</span>
-            <span class="hub-sep">|</span>
-            <span class="hub-name">${name.replace(/_/g, " ")}</span>
+      <div class="node-block ${online ? "" : "node-offline"}">
+        <div class="node-header">
+          <div class="node-left">
             <span class="status-dot ${online ? "dot-online" : "dot-offline"}"></span>
+            <span class="node-name">Hub: ${name.replace(/_/g, " ")}</span>
+            <span class="node-key dim clickable" data-entity="${statusId || countId}">(${pubkey})</span>
           </div>
-          ${nodeCount !== null ? `<span class="count-badge clickable" data-entity="${countId}">◈ ${nodeCount} Nodes</span>` : ""}
+          <div class="node-right">
+            ${nodeCount !== null ? `<span class="count-badge clickable" data-entity="${countId}">◈ ${nodeCount} Nodes</span>` : ""}
+          </div>
         </div>
 
         ${hwModel || firmware ? `<div class="hw-info">${[hwModel, firmware].filter(Boolean).join(" • ")}</div>` : ""}
@@ -316,7 +318,8 @@ class MeshcoreCard extends HTMLElement {
               return `<span class="mqtt-pill ${v ? "ok" : "err"} clickable" data-entity="${id}">${lbl}</span>`;
             }).join("")}
           </div>` : ""}
-      </div>`;
+      </div>
+    `;
   }
 
   // ── Node rendering ───────────────────────────────────────────────────────
@@ -324,6 +327,7 @@ class MeshcoreCard extends HTMLElement {
   _renderNode(node) {
     const { name, deviceId, ePrefix, eSuffix } = node;
     const p = (m) => this._findEntityByDevice(deviceId, m, ePrefix, eSuffix);
+    const nodeCfg = this._nodeCfg(name);
 
     // Common entities (all types)
     const statusId  = p("status");
@@ -333,10 +337,11 @@ class MeshcoreCard extends HTMLElement {
     const pathId    = p("path_length");
     const routeId   = p("routing_path");
     const advertId  = p("last_advert");
-    const battPctId = p("battery_percentage") || p("battery_level") || p("battery");
-    const battVId   = p("battery_voltage");
-    const latId     = p("latitude");
-    const lonId     = p("longitude");
+    const battPctId = nodeCfg.battery_entity || p("battery_percentage") || p("battery_level") || p("battery");
+    const battVId   = nodeCfg.voltage_entity  || p("battery_voltage");
+    const locEntityId = nodeCfg.location_entity || null;
+    const latId     = locEntityId ? null : p("latitude");
+    const lonId     = locEntityId ? null : p("longitude");
 
     // Repeater / Room Server extras (type 2 & 3)
     const sentId     = p("nb_sent");
@@ -367,8 +372,9 @@ class MeshcoreCard extends HTMLElement {
     const lastAdv = this._val(advertId);
     const battPct = this._val(battPctId);
     const battV   = this._val(battVId);
-    const lat     = this._val(latId);
-    const lon     = this._val(lonId);
+    const lat     = locEntityId ? this._attr(locEntityId, "latitude")  : this._val(latId);
+    const lon     = locEntityId ? this._attr(locEntityId, "longitude") : this._val(lonId);
+    const locId   = locEntityId || latId;
 
     const successes = this._val(successId);
     const online   = successes !== null ? Number(successes) > 0 : isOnlineState(status);
@@ -476,9 +482,9 @@ class MeshcoreCard extends HTMLElement {
               }).join("")}
             </div>` : ""}
 
-          ${lat !== null && lon !== null ? this._locLink(lat, lon, latId) : ""}
+          ${lat !== null && lon !== null ? this._locLink(lat, lon, locId) : ""}
         ` : `
-          ${lat !== null && lon !== null ? this._locLink(lat, lon, latId) : ""}
+          ${lat !== null && lon !== null ? this._locLink(lat, lon, locId) : ""}
         `}
 
         ${isSensor && telemetryCells.length ? `
@@ -492,25 +498,40 @@ class MeshcoreCard extends HTMLElement {
       </div>`;
   }
 
+  // ── Config helpers ───────────────────────────────────────────────────────
+
+  // Returns normalised config object for a hub, handling legacy boolean values.
+  _hubCfg(pubkey) {
+    const v = (this._config.hubs || {})[pubkey];
+    if (v && typeof v === "object") return v;
+    return { enabled: v !== false };
+  }
+
+  // Returns normalised config object for a node, handling legacy boolean values.
+  _nodeCfg(name) {
+    const v = (this._config.nodes || {})[name];
+    if (v && typeof v === "object") return v;
+    return { enabled: v !== false };
+  }
+
   // ── Main render ──────────────────────────────────────────────────────────
 
   _render() {
     if (!this._hass || !this._config) return;
 
-    const cfg       = this._config;
-    const hubsCfg   = cfg.hubs  || {};
-    const nodesCfg  = cfg.nodes || {};
-
-    let hubs = this._discoverHubs()
-      .filter(h => hubsCfg[h.pubkey] !== false);
-
-    if (!hubs.length) {
-      this._setBody(`<div class="empty">No MeshCore hubs found (or all disabled).<br>Check the meshcore integration is installed.</div>`);
+    const allHubs = this._discoverHubs();
+    if (!allHubs.length) {
+      this._setBody(`<div class="empty">No MeshCore hubs found.<br>Check the meshcore integration is installed.</div>`);
       return;
     }
 
+    const visibleHubs = allHubs.filter(h => this._hubCfg(h.pubkey).enabled !== false);
     const nodes = this._discoverNodes()
-      .filter(n => nodesCfg[n.name] !== false);
+      .filter(n => this._nodeCfg(n.name).enabled !== false);
+
+    const hubsHtml = visibleHubs.length
+      ? `<div class="section-label">HUBS</div>` + visibleHubs.map(hub => this._renderHub(hub)).join("")
+      : "";
 
     const nodesHtml = nodes.length
       ? `<div class="nodes-section">
@@ -519,9 +540,7 @@ class MeshcoreCard extends HTMLElement {
          </div>`
       : "";
 
-    const body = hubs.map(hub => this._renderHub(hub)).join("") + nodesHtml;
-
-    this._setBody(body);
+    this._setBody(hubsHtml + nodesHtml || `<div class="empty">All hubs and nodes are hidden.</div>`);
   }
 
   _setBody(body) {
@@ -545,16 +564,10 @@ const STYLES = `
     color: var(--primary-text-color);
   }
 
-  /* Hub */
-  .hub-block { margin-bottom: 4px; }
-  .hub-block + .hub-block { border-top: 1px solid var(--divider-color); padding-top: 14px; margin-top: 10px; }
-  .hub-header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
-  .hub-title-group { display: flex; align-items: center; gap: 6px; font-weight: 600; }
-  .hub-sep { color: var(--secondary-text-color); }
-  .hub-name { font-weight: 700; text-transform: capitalize; }
-  .hub-pubkey { font-family: var(--paper-font-code1_-_font-family, monospace); font-size: var(--paper-font-caption_-_font-size, 12px); color: var(--secondary-text-color); }
-  .hw-info { font-size: var(--paper-font-caption_-_font-size, 12px); color: var(--secondary-text-color); margin-bottom: 8px; }
+  /* Hub / Node shared */
+  .hw-info { font-size: var(--paper-font-caption_-_font-size, 12px); color: var(--secondary-text-color); margin: 4px 0 6px; }
   .count-badge { font-size: var(--paper-font-caption_-_font-size, 12px); font-weight: 600; background: var(--secondary-background-color); padding: 3px 10px; border-radius: 20px; }
+  .node-key { font-family: var(--paper-font-code1_-_font-family, monospace); font-size: var(--paper-font-caption_-_font-size, 12px); }
 
   /* Status dots */
   .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
@@ -648,7 +661,8 @@ class MeshcoreCardEditor extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
-    // Only re-render when the set of discovered hubs/nodes changes, not on every state update
+    const form = this.querySelector("ha-form");
+    if (form) form.hass = hass;
     const hubs = this._discoverHubs();
     const nodes = this._discoverNodes();
     const fp = hubs.map(h => h.pubkey).join(",") + "|" + nodes.map(n => n.name).join(",");
@@ -671,19 +685,15 @@ class MeshcoreCardEditor extends HTMLElement {
 
   _discoverNodes() {
     if (!this._hass?.entities || !this._hass?.devices) return [];
-
     const hubDeviceIds = new Set();
     for (const [entityId, info] of Object.entries(this._hass.entities)) {
       if (/node_count/.test(entityId) && info.device_id) hubDeviceIds.add(info.device_id);
     }
-
     const meshcoreDeviceIds = new Set();
     for (const [, info] of Object.entries(this._hass.entities)) {
-      if (info.platform === "meshcore" && info.device_id && !hubDeviceIds.has(info.device_id)) {
+      if (info.platform === "meshcore" && info.device_id && !hubDeviceIds.has(info.device_id))
         meshcoreDeviceIds.add(info.device_id);
-      }
     }
-
     const nodes = [];
     for (const deviceId of meshcoreDeviceIds) {
       const device = this._hass.devices[deviceId];
@@ -693,90 +703,124 @@ class MeshcoreCardEditor extends HTMLElement {
     return nodes;
   }
 
+  _getCfgObj(kind, key) {
+    const map = kind === "hub" ? (this._config.hubs || {}) : (this._config.nodes || {});
+    const v = map[key];
+    if (v && typeof v === "object") return { ...v };
+    return { enabled: v !== false };
+  }
+
+  // Build ha-form schema: one expandable section per hub/node.
+  // ha-form expandable nests inner field data under the section's own name key,
+  // so inner fields use plain names (enabled, battery_entity, voltage_entity).
+  _buildSchema(hubs, nodes) {
+    const section = (name, title, kind, entityIds) => {
+      const sel = entityIds.length
+        ? { entity: { include_entities: entityIds } }
+        : { entity: { domain: "sensor" } };
+      return {
+        type: "expandable",
+        name,
+        title,
+        schema: [
+          { name: "enabled",        label: `Show this ${kind}`,                      selector: { boolean: {} } },
+          { name: "battery_entity", label: "Battery % entity (blank = auto-detect)",  selector: sel },
+          { name: "voltage_entity", label: "Voltage entity (blank = auto-detect)",    selector: sel },
+          ...(kind === "node" ? [{ name: "location_entity", label: "Location entity with latitude/longitude attributes (optional)", selector: sel }] : []),
+        ],
+      };
+    };
+
+    return [
+      ...hubs.map(h => {
+        const ids = Object.keys(this._hass.states).filter(id => id.includes(h.pubkey));
+        return section(`hub__${h.pubkey}`, `Hub: ${h.name} (${h.pubkey})`, "hub", ids);
+      }),
+      ...nodes.map(n => {
+        const ids = this._hass.entities
+          ? Object.entries(this._hass.entities)
+              .filter(([, info]) => info.device_id === n.deviceId)
+              .map(([id]) => id)
+          : [];
+        return section(`node__${n.name}`, n.name.replace(/_/g, " "), "node", ids);
+      }),
+    ];
+  }
+
+  // Build data in the nested format ha-form expandable expects:
+  // { "hub__<pubkey>": { enabled, battery_entity, voltage_entity }, ... }
+  _buildData(hubs, nodes) {
+    const data = {};
+    for (const hub of hubs) {
+      const cfg = this._getCfgObj("hub", hub.pubkey);
+      data[`hub__${hub.pubkey}`] = {
+        enabled:        cfg.enabled !== false,
+        battery_entity: cfg.battery_entity || null,
+        voltage_entity: cfg.voltage_entity || null,
+      };
+    }
+    for (const node of nodes) {
+      const cfg = this._getCfgObj("node", node.name);
+      data[`node__${node.name}`] = {
+        enabled:          cfg.enabled !== false,
+        battery_entity:   cfg.battery_entity   || null,
+        voltage_entity:   cfg.voltage_entity   || null,
+        location_entity:  cfg.location_entity  || null,
+      };
+    }
+    return data;
+  }
+
+  // Convert ha-form nested output back to the card config structure.
+  _formDataToConfig(formData, hubs, nodes) {
+    const cfg = { ...this._config };
+    for (const hub of hubs) {
+      const d = formData[`hub__${hub.pubkey}`] || {};
+      const obj = { enabled: d.enabled !== false };
+      if (d.battery_entity) obj.battery_entity = d.battery_entity;
+      if (d.voltage_entity) obj.voltage_entity = d.voltage_entity;
+      cfg.hubs = { ...(cfg.hubs || {}), [hub.pubkey]: obj };
+    }
+    for (const node of nodes) {
+      const d = formData[`node__${node.name}`] || {};
+      const obj = { enabled: d.enabled !== false };
+      if (d.battery_entity)  obj.battery_entity  = d.battery_entity;
+      if (d.voltage_entity)  obj.voltage_entity  = d.voltage_entity;
+      if (d.location_entity) obj.location_entity = d.location_entity;
+      cfg.nodes = { ...(cfg.nodes || {}), [node.name]: obj };
+    }
+    return cfg;
+  }
+
   _renderEditor() {
     if (!this._config) return;
-    const hubs     = this._discoverHubs();
-    const hubsCfg  = this._config.hubs  || {};
-    const nodesCfg = this._config.nodes || {};
 
-    const hubRows = hubs.map(hub => {
-      const hubEnabled = hubsCfg[hub.pubkey] !== false;
-      return `
-        <div class="toggle-row hub-row" data-key="${hub.pubkey}" data-kind="hub">
-          <div class="row-info">
-            <span class="hub-dot"></span>
-            <span class="row-name">${hub.name}</span>
-            <span class="row-pubkey">${hub.pubkey}</span>
-          </div>
-          <label class="toggle-switch">
-            <input type="checkbox" ${hubEnabled ? "checked" : ""} data-key="${hub.pubkey}" data-kind="hub">
-            <span class="slider"></span>
-          </label>
-        </div>`;
-    }).join("");
+    while (this.lastChild) this.removeChild(this.lastChild);
 
-    const allNodes = this._discoverNodes();
-    const nodeRows = allNodes.map(n => {
-      const nodeEnabled = nodesCfg[n.name] !== false;
-      return `
-        <div class="toggle-row node-row" data-key="${n.name}" data-kind="node">
-          <div class="row-info">
-            <span class="row-name">${n.name.replace(/_/g, " ")}</span>
-          </div>
-          <label class="toggle-switch">
-            <input type="checkbox" ${nodeEnabled ? "checked" : ""} data-key="${n.name}" data-kind="node">
-            <span class="slider"></span>
-          </label>
-        </div>`;
-    }).join("");
+    const hubs  = this._discoverHubs();
+    const nodes = this._discoverNodes();
 
-    const rows = hubRows + (allNodes.length ? `<div class="section-title">NODES</div>${nodeRows}` : "");
+    if (!hubs.length) {
+      const alert = document.createElement("ha-alert");
+      alert.alertType = "info";
+      alert.textContent = "No MeshCore hubs detected yet. Add the card, then edit to configure.";
+      this.appendChild(alert);
+      return;
+    }
 
-    this.innerHTML = `
-      <style>
-        .editor { padding: 8px 0; font-family: var(--paper-font-body1_-_font-family, system-ui, sans-serif); font-size: 14px; }
-        .section-title { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em; color: var(--secondary-text-color); padding: 12px 16px 4px; }
-        .toggle-row {
-          display: flex; align-items: center; justify-content: space-between;
-          padding: 8px 16px; border-radius: 8px; margin: 2px 8px;
-        }
-        .hub-row { background: var(--secondary-background-color, rgba(0,0,0,0.06)); margin-top: 4px; }
-        .node-row { padding: 6px 16px 6px 32px; }
-        .node-group { border-left: 2px solid var(--divider-color, rgba(0,0,0,0.1)); margin: 0 16px 4px 32px; padding-left: 0; border-radius: 0 0 0 4px; }
-        .row-info { display: flex; align-items: center; gap: 8px; }
-        .row-name { font-weight: 500; text-transform: capitalize; }
-        .row-pubkey { font-family: monospace; font-size: 0.72rem; color: var(--secondary-text-color); }
-        .row-type { font-size: 0.65rem; color: var(--accent-color, #0a84ff); background: rgba(10,132,255,0.1); padding: 1px 6px; border-radius: 5px; font-weight: 600; }
-        .hub-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-color, #0a84ff); flex-shrink: 0; }
-        .hint { font-size: 0.75rem; color: var(--secondary-text-color); padding: 8px 16px; }
+    const form = document.createElement("ha-form");
+    form.hass   = this._hass;
+    form.schema = this._buildSchema(hubs, nodes);
+    form.data   = this._buildData(hubs, nodes);
+    form.computeLabel = (s) => s.label || s.title || s.name;
 
-        /* Toggle switch */
-        .toggle-switch { position: relative; display: inline-block; width: 36px; height: 20px; flex-shrink: 0; }
-        .toggle-switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; inset: 0; background: var(--divider-color, #ccc); border-radius: 20px; transition: background 0.2s; cursor: pointer; }
-        .slider::before { content: ""; position: absolute; width: 14px; height: 14px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: transform 0.2s; }
-        input:checked + .slider { background: var(--accent-color, #0a84ff); }
-        input:checked + .slider::before { transform: translateX(16px); }
-      </style>
-      <div class="editor">
-        ${hubs.length === 0
-          ? `<div class="hint">No MeshCore hubs detected yet. Add the card, then edit to configure.</div>`
-          : `<div class="section-title">HUBS &amp; NODES</div>${rows}`}
-      </div>`;
-
-    this.querySelectorAll("input[type=checkbox]").forEach(input => {
-      input.addEventListener("change", () => {
-        const { key, kind } = input.dataset;
-        const cfg = { ...this._config };
-        if (kind === "hub") {
-          cfg.hubs = { ...hubsCfg, [key]: input.checked };
-        } else {
-          cfg.nodes = { ...nodesCfg, [key]: input.checked };
-        }
-        this._config = cfg;
-        this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: cfg } }));
-      });
+    form.addEventListener("value-changed", (e) => {
+      const newConfig = this._formDataToConfig(e.detail.value, hubs, nodes);
+      this._config = newConfig;
+      this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: newConfig } }));
     });
+
+    this.appendChild(form);
   }
 }
 
