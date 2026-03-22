@@ -92,9 +92,19 @@ class MeshcoreCard extends HTMLElement {
       .filter(([id]) => id.includes("meshcore"))
       .map(([id, s]) => `${id}=${s.state}@${s.last_changed}`)
       .join("|");
-    if (fp !== this._fp) {
-      this._fp = fp;
+    if (fp === this._fp) return;
+    this._fp = fp;
+    const now = Date.now();
+    if (now - (this._lastRender || 0) >= 10000) {
+      this._lastRender = now;
       this._render();
+    } else if (!this._renderTimer) {
+      const delay = 10000 - (now - (this._lastRender || 0));
+      this._renderTimer = setTimeout(() => {
+        this._renderTimer = null;
+        this._lastRender = Date.now();
+        this._render();
+      }, delay);
     }
   }
 
@@ -282,7 +292,7 @@ class MeshcoreCard extends HTMLElement {
           ${this._progressBar(battPct, battCol)}` : ""}
 
         <div class="chip-row">
-          ${battV !== null && Number(battV) !== 0 ? this._chip(battVId, "⚡", parseFloat(battV).toFixed(3) + "V") : ""}
+          ${battV !== null && parseFloat(battV) >= 0.001 ? this._chip(battVId, "⚡", parseFloat(battV).toFixed(3) + "V") : ""}
           ${this._exists(ch1VId) ? this._chip(ch1VId, "Ch1 ", (this._val(ch1VId) || "—") + "V") : ""}
           ${this._exists(rateLimId) ? this._chip(rateLimId, "Rate ", (this._val(rateLimId) || "—") + " tok") : ""}
         </div>
@@ -417,13 +427,13 @@ class MeshcoreCard extends HTMLElement {
           <div class="bar-row">
             <span class="bar-label">🔋 Battery</span>
             <span class="bar-label-right">
-              ${battV !== null && Number(battV) !== 0 ? `<span class="clickable" data-entity="${battVId}">⚡ ${parseFloat(battV).toFixed(3)}V</span>` : ""}
+              ${battV !== null && parseFloat(battV) >= 0.001 ? `<span class="clickable" data-entity="${battVId}">⚡ ${parseFloat(battV).toFixed(3)}V</span>` : ""}
               <span class="bar-val clickable" data-entity="${battPctId}" style="color:${batteryColor(battPct)}">${battPct}%</span>
             </span>
           </div>
           ${this._progressBar(battPct, batteryColor(battPct))}` : ""}
 
-        ${battV !== null && Number(battV) !== 0 && (battPct === null || Number(battPct) === 0) ? `
+        ${battV !== null && parseFloat(battV) >= 0.001 && (battPct === null || Number(battPct) === 0) ? `
           <div class="node-chip-row">
             ${this._chip(battVId, "⚡ ", parseFloat(battV).toFixed(3) + "V")}
           </div>` : ""}
