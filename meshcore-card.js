@@ -301,7 +301,7 @@ class MeshcoreCard extends HTMLElement {
             ${mqttIds.map(id => {
               const v   = this._val(id);
               const lbl = this._attr(id, "server") || (this._attr(id, "friendly_name") || id).replace(/meshcore\s+\w+\s*/i, "").replace(/_/g, " ").trim();
-              const ok  = isOnlineState(v);
+              const ok  = String(v).toLowerCase() === "true";
               return `<span class="mqtt-pill ${ok ? "ok" : "err"} clickable" data-entity="${id}">${lbl}</span>`;
             }).join("")}
           </div>` : ""}
@@ -573,8 +573,8 @@ const STYLES = `
   /* MQTT pills */
   .mqtt-row { display: flex; flex-wrap: wrap; gap: 5px; margin: 4px 0 6px; }
   .mqtt-pill { font-size: var(--paper-font-caption_-_font-size, 12px); padding: 3px 10px; border-radius: 20px; font-weight: 500; text-transform: capitalize; }
-  .mqtt-pill.ok  { color: var(--success-color, #4caf50); }
-  .mqtt-pill.err { color: var(--error-color, #f44336); }
+  .mqtt-pill.ok  { color: var(--success-color, #4caf50); background: rgba(76,175,80,0.12); }
+  .mqtt-pill.err { color: var(--error-color, #f44336); background: rgba(244,67,54,0.12); }
 
   /* Color helpers */
   .green  { color: var(--success-color, #4caf50); }
