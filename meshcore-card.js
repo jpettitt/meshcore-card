@@ -298,6 +298,7 @@ class MeshcoreCard extends HTMLElement {
 
         ${mqttIds.length ? `
           <div class="mqtt-row">
+            <span class="mqtt-label">MQTT</span>
             ${mqttIds.map(id => {
               const v   = this._val(id);
               const lbl = this._attr(id, "server") || (this._attr(id, "friendly_name") || id).replace(/meshcore\s+\w+\s*/i, "").replace(/_/g, " ").trim();
@@ -571,7 +572,8 @@ const STYLES = `
   .rf-chip { font-size: var(--paper-font-caption_-_font-size, 12px); padding: 2px 8px; border-radius: 6px; background: var(--secondary-background-color); color: var(--primary-color); font-weight: 500; }
 
   /* MQTT pills */
-  .mqtt-row { display: flex; flex-wrap: wrap; gap: 5px; margin: 4px 0 6px; }
+  .mqtt-row { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin: 4px 0 6px; }
+  .mqtt-label { font-size: var(--paper-font-caption_-_font-size, 12px); color: var(--secondary-text-color); font-weight: 500; margin-right: 2px; }
   .mqtt-pill { font-size: var(--paper-font-caption_-_font-size, 12px); padding: 3px 10px; border-radius: 20px; font-weight: 500; text-transform: capitalize; }
   .mqtt-pill.ok  { color: var(--success-color, #4caf50); background: rgba(76,175,80,0.12); }
   .mqtt-pill.err { color: var(--error-color, #f44336); background: rgba(244,67,54,0.12); }
