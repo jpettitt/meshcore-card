@@ -1,0 +1,21 @@
+{
+  "name": "meshcore-card",
+  "version": "1.0.0",
+  "description": "Home Assistant Lovelace card for MeshCore mesh radio network",
+  "license": "MIT",
+  "scripts": {
+    "build": "rollup -c rollup.config.mjs",
+    "watch": "rollup -c rollup.config.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "dev": "npm run typecheck && npm run watch"
+  },
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-typescript": "^11.1.6",
+    "home-assistant-js-websocket": "^9.4.0",
+    "rollup": "^4.18.0",
+    "@rollup/plugin-terser": "^0.4.4",
+    "tslib": "^2.6.3",
+    "typescript": "^5.5.2"
+  }
+}
