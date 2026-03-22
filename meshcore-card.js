@@ -274,7 +274,7 @@ class MeshcoreCard extends HTMLElement {
 
         ${hwModel || firmware ? `<div class="hw-info">${[hwModel, firmware].filter(Boolean).join(" • ")}</div>` : ""}
 
-        ${battPct !== null ? `
+        ${battPct !== null && Number(battPct) !== 0 ? `
           <div class="bar-row">
             <span class="bar-label">🔋 Battery</span>
             <span class="bar-val clickable" data-entity="${battPctId}" style="color:${battCol}">${battPct}%</span>
@@ -282,7 +282,7 @@ class MeshcoreCard extends HTMLElement {
           ${this._progressBar(battPct, battCol)}` : ""}
 
         <div class="chip-row">
-          ${battV !== null ? this._chip(battVId, "⚡", parseFloat(battV).toFixed(3) + "V") : ""}
+          ${battV !== null && Number(battV) !== 0 ? this._chip(battVId, "⚡", parseFloat(battV).toFixed(3) + "V") : ""}
           ${this._exists(ch1VId) ? this._chip(ch1VId, "Ch1 ", (this._val(ch1VId) || "—") + "V") : ""}
           ${this._exists(rateLimId) ? this._chip(rateLimId, "Rate ", (this._val(rateLimId) || "—") + " tok") : ""}
         </div>
@@ -302,8 +302,8 @@ class MeshcoreCard extends HTMLElement {
             ${mqttIds.map(id => {
               const v   = this._val(id);
               const lbl = this._attr(id, "server") || (this._attr(id, "friendly_name") || id).replace(/meshcore\s+\w+\s*/i, "").replace(/_/g, " ").trim();
-              const ok  = String(v).toLowerCase() === "true";
-              return `<span class="mqtt-pill ${ok ? "ok" : "err"} clickable" data-entity="${id}">${lbl}</span>`;
+              
+              return `<span class="mqtt-pill ${v ? "ok" : "err"} clickable" data-entity="${id}">${lbl}</span>`;
             }).join("")}
           </div>` : ""}
       </div>`;
@@ -313,7 +313,7 @@ class MeshcoreCard extends HTMLElement {
 
   _renderNode(node) {
     const { name, deviceId, ePrefix, eSuffix } = node;
-    const p = (m) => this._findEntityByDevice(deviceId, m, ePrefix, eSuffix);
+    const p = (m) => this._findEntityByDevice(deviceId, m, ePrefix, eSuffix);q
 
     // Common entities (all types)
     const statusId  = p("status");
@@ -413,17 +413,17 @@ class MeshcoreCard extends HTMLElement {
         ${route && !["unknown","unavailable"].includes(route) ? `
           <div class="node-route">↝ ${route}</div>` : ""}
 
-        ${battPct !== null ? `
+        ${battPct !== null && Number(battPct) !== 0 ? `
           <div class="bar-row">
             <span class="bar-label">🔋 Battery</span>
             <span class="bar-label-right">
-              ${battV !== null ? `<span class="clickable" data-entity="${battVId}">⚡ ${parseFloat(battV).toFixed(3)}V</span>` : ""}
+              ${battV !== null && Number(battV) !== 0 ? `<span class="clickable" data-entity="${battVId}">⚡ ${parseFloat(battV).toFixed(3)}V</span>` : ""}
               <span class="bar-val clickable" data-entity="${battPctId}" style="color:${batteryColor(battPct)}">${battPct}%</span>
             </span>
           </div>
           ${this._progressBar(battPct, batteryColor(battPct))}` : ""}
 
-        ${battV !== null && battPct === null ? `
+        ${battV !== null && Number(battV) !== 0 && (battPct === null || Number(battPct) === 0) ? `
           <div class="node-chip-row">
             ${this._chip(battVId, "⚡ ", parseFloat(battV).toFixed(3) + "V")}
           </div>` : ""}
