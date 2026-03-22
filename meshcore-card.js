@@ -323,10 +323,11 @@ class MeshcoreCard extends HTMLElement {
 
   _renderNode(node) {
     const { name, deviceId, ePrefix, eSuffix } = node;
-    const p = (m) => this._findEntityByDevice(deviceId, m, ePrefix, eSuffix);q
+    const p = (m) => this._findEntityByDevice(deviceId, m, ePrefix, eSuffix);
 
     // Common entities (all types)
     const statusId  = p("status");
+    const successId = p("request_successes");
     const rssiId    = p("last_rssi");
     const snrId     = p("last_snr");
     const pathId    = p("path_length");
@@ -369,7 +370,8 @@ class MeshcoreCard extends HTMLElement {
     const lat     = this._val(latId);
     const lon     = this._val(lonId);
 
-    const online   = isOnlineState(status);
+    const successes = this._val(successId);
+    const online   = successes !== null ? Number(successes) > 0 : isOnlineState(status);
     const lastSeen = formatLastSeen(lastAdv);
 
     // Detect node role by entity presence — no type attribute needed
@@ -409,7 +411,7 @@ class MeshcoreCard extends HTMLElement {
         <div class="node-header">
           <div class="node-left">
             <span class="status-dot ${online ? "dot-online" : "dot-offline"}"></span>
-            <span class="node-name clickable" data-entity="${statusId}">${name.replace(/_/g, " ")}</span>
+            <span class="node-name">${name.replace(/_/g, " ")}</span>
             ${isRepeater ? `<span class="type-badge">Repeater</span>` : isSensor ? `<span class="type-badge">Sensor</span>` : ""}
           </div>
           <div class="node-right">
