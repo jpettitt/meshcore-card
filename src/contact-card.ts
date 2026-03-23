@@ -1,6 +1,7 @@
 import type { HomeAssistant, MeshcoreContactCardConfig, HaFormElement } from "./types.js";
 import { formatLastSeen } from "./helpers.js";
 import { STYLES } from "./styles.js";
+import { makeLocalize, type LocalizeFunc } from "./localize.js";
 
 const CONTACT_STYLES: string = `
   .contact-list { display: flex; flex-direction: column; gap: 2px; }
@@ -105,7 +106,7 @@ export class MeshcoreContactCard extends HTMLElement {
     }
   }
 
-  private _discoverContacts(): ContactEntry[] {
+  private _discoverContacts(t: LocalizeFunc): ContactEntry[] {
     if (!this._hass) return [];
     const maxAgeDays = this._config?.max_contact_age_days ?? DEFAULT_MAX_AGE_DAYS;
     const cutoff = Date.now() / 1000 - maxAgeDays * 86400;
@@ -123,7 +124,7 @@ export class MeshcoreContactCard extends HTMLElement {
           advName:   String(a["adv_name"] || entityId),
           nodeType:  String(a["node_type_str"] || ""),
           lastAdvert,
-          timeSince: formatLastSeen(lastAdvert || null),
+          timeSince: formatLastSeen(lastAdvert || null, t),
           icon:      String(a["icon"] || "mdi:account"),
           lat:             lat !== null && !isNaN(lat) && lat !== 0 ? lat : null,
           lon:             lon !== null && !isNaN(lon) && lon !== 0 ? lon : null,
@@ -135,7 +136,7 @@ export class MeshcoreContactCard extends HTMLElement {
       .sort((a, b) => b.lastAdvert - a.lastAdvert);
   }
 
-  private _renderRow(c: ContactEntry): string {
+  private _renderRow(c: ContactEntry, t: LocalizeFunc): string {
     const mapUrl = c.lat !== null && c.lon !== null
       ? `https://analyzer.letsmesh.net/map?lat=${c.lat.toFixed(5)}&long=${c.lon!.toFixed(5)}&zoom=10`
       : null;
@@ -152,7 +153,7 @@ export class MeshcoreContactCard extends HTMLElement {
           </div>
           <div class="contact-meta">
             ${c.timeSince ? `<span>${c.timeSince}</span>` : ""}
-            ${mapUrl ? `<a class="meta-loc" href="${mapUrl}" target="_blank" rel="noopener">📍 ${c.lat!.toFixed(5)}, ${c.lon!.toFixed(5)}</a>` : c.unknownLocation ? `<span class="dim">Unknown Location</span>` : ""}
+            ${mapUrl ? `<a class="meta-loc" href="${mapUrl}" target="_blank" rel="noopener">📍 ${c.lat!.toFixed(5)}, ${c.lon!.toFixed(5)}</a>` : c.unknownLocation ? `<span class="dim">${t("card.unknown_location")}</span>` : ""}
           </div>
         </div>
         <div class="contact-right">
@@ -163,14 +164,15 @@ export class MeshcoreContactCard extends HTMLElement {
 
   private _render(): void {
     if (!this._hass || !this._config) return;
-    const contacts = this._discoverContacts();
+    const t = makeLocalize(this._hass.language ?? this._hass.locale?.language ?? "en");
+    const contacts = this._discoverContacts(t);
     if (!contacts.length) {
-      this._setBody(`<div class="empty">No MeshCore contact nodes found.<br>Check the meshcore integration is installed.</div>`);
+      this._setBody(`<div class="empty">${t("card.empty_contacts")}</div>`);
       return;
     }
     this._setBody(
-      `<div class="section-label">CONTACTS</div>` +
-      `<div class="contact-list">${contacts.map((c) => this._renderRow(c)).join("")}</div>`
+      `<div class="section-label">${t("card.section_contacts")}</div>` +
+      `<div class="contact-list">${contacts.map((c) => this._renderRow(c, t)).join("")}</div>`
     );
   }
 
@@ -231,10 +233,11 @@ export class MeshcoreContactCardEditor extends HTMLElement {
 
     const form = document.createElement("ha-form") as HaFormElement;
     form.hass = this._hass!;
+    const t = makeLocalize(this._hass?.language ?? this._hass?.locale?.language ?? "en");
     form.schema = [
       {
         name: "max_contact_age_days",
-        label: "Maximum contact age (days)",
+        label: t("editor.max_contact_age"),
         selector: { number: { min: 1, max: 365, step: 1, unit_of_measurement: "days", mode: "box" } } as never,
       },
     ];

@@ -11,6 +11,7 @@ import type {
   HaAlertElement,
 } from "./types.js";
 import { discoverHubs, discoverNodes } from "./discovery.js";
+import { makeLocalize } from "./localize.js";
 
 interface EditorHubInfo extends HubInfo {
   // name already normalized (underscores replaced) for display
@@ -72,6 +73,8 @@ export class MeshcoreCardEditor extends HTMLElement {
   // ── Schema / data builders ─────────────────────────────────────────────────
 
   private _buildSchema(hubs: EditorHubInfo[], nodes: EditorNodeInfo[]): HaFormSchema[] {
+    const t = makeLocalize(this._hass?.language ?? this._hass?.locale?.language ?? "en");
+
     // All entities from the meshcore integration — used for location picker
     const meshcoreIds = this._hass?.entities
       ? Object.entries(this._hass.entities)
@@ -96,11 +99,11 @@ export class MeshcoreCardEditor extends HTMLElement {
         name,
         title,
         schema: [
-          { name: "enabled",        label: `Show this ${kind}`,                      selector: { boolean: {} } },
-          { name: "battery_entity", label: "Battery % entity (blank = auto-detect)",  selector: sel },
-          { name: "voltage_entity", label: "Voltage entity (blank = auto-detect)",    selector: sel },
+          { name: "enabled",        label: kind === "hub" ? t("editor.show_this_hub") : t("editor.show_this_node"), selector: { boolean: {} } },
+          { name: "battery_entity", label: t("editor.battery_entity"), selector: sel },
+          { name: "voltage_entity", label: t("editor.voltage_entity"), selector: sel },
           ...(kind === "node"
-            ? [{ name: "location_entity", label: "Location entity with latitude/longitude attributes (optional)", selector: locationSel }]
+            ? [{ name: "location_entity", label: t("editor.location_entity"), selector: locationSel }]
             : []),
         ],
       };
@@ -109,7 +112,7 @@ export class MeshcoreCardEditor extends HTMLElement {
     return [
       ...hubs.map((h) => {
         const ids = Object.keys(this._hass?.states ?? {}).filter((id) => id.includes(h.pubkey));
-        return section(`hub__${h.pubkey}`, `Hub: ${h.name} (${h.pubkey})`, "hub", ids);
+        return section(`hub__${h.pubkey}`, t("editor.hub_section_title", { name: h.name, key: h.pubkey }), "hub", ids);
       }),
       ...nodes.map((n) => {
         const ids = this._hass?.entities
@@ -182,9 +185,10 @@ export class MeshcoreCardEditor extends HTMLElement {
     const nodes = this._discoverNodes();
 
     if (!hubs.length) {
+      const t = makeLocalize(this._hass?.language ?? this._hass?.locale?.language ?? "en");
       const alert = document.createElement("ha-alert") as HaAlertElement;
       alert.alertType = "info";
-      alert.textContent = "No MeshCore hubs detected yet. Add the card, then edit to configure.";
+      alert.textContent = t("editor.no_hubs_detected");
       this.appendChild(alert);
       return;
     }
