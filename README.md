@@ -3,6 +3,7 @@
 Custom [Home Assistant](https://www.home-assistant.io/) Lovelace cards that display hub, node, and contact statistics from the [MeshCore](https://meshcore.co.uk) mesh radio network integration.
 
 ![MeshCore Card screenshot](screenshot.png)
+![MeshCore Contact Card screenshot](contact-card-screenshot.png)
 
 ---
 
