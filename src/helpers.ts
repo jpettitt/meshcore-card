@@ -17,15 +17,16 @@ export function isOnlineState(v: unknown): boolean {
 }
 
 export function formatLastSeen(
-  ts: string | number | null | undefined
+  ts: string | number | null | undefined,
+  t: (key: string, vars?: Record<string, string | number>) => string
 ): string | null {
   if (!ts || ts === "unknown" || ts === "unavailable") return null;
   const diff = Math.floor(Date.now() / 1000 - Number(ts));
   if (isNaN(diff) || diff < 0) return null;
-  if (diff < 60) return `${diff}s ago`;
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
+  if (diff < 60) return t("time.s_ago", { n: diff });
+  if (diff < 3600) return t("time.m_ago", { n: Math.floor(diff / 60) });
+  if (diff < 86400) return t("time.h_ago", { n: Math.floor(diff / 3600) });
+  return t("time.d_ago", { n: Math.floor(diff / 86400) });
 }
 
 export function batteryColor(pct: string | number | null): string {

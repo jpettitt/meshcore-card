@@ -18,6 +18,7 @@ import {
 } from "./helpers.js";
 import { STYLES } from "./styles.js";
 import { discoverHubs, discoverNodes } from "./discovery.js";
+import { makeLocalize, type LocalizeFunc } from "./localize.js";
 
 export class MeshcoreCard extends HTMLElement {
   private _hass?: HomeAssistant;
@@ -25,6 +26,7 @@ export class MeshcoreCard extends HTMLElement {
   private _fp: string | null = null;
   private _lastRender = 0;
   private _renderTimer: ReturnType<typeof setTimeout> | null = null;
+  private _trimTimer: ReturnType<typeof requestAnimationFrame> | null = null;
 
   constructor() {
     super();
@@ -165,20 +167,20 @@ export class MeshcoreCard extends HTMLElement {
     }${blank ? "—" : value}</span>`;
   }
 
-  private _locLink(lat: unknown, lon: unknown, entityId: string | null): string {
+  private _locLink(lat: unknown, lon: unknown, entityId: string | null, t: LocalizeFunc): string {
     if (!entityId) return "";
     const latF = parseFloat(String(lat)).toFixed(5);
     const lonF = parseFloat(String(lon)).toFixed(5);
     const url = `https://analyzer.letsmesh.net/map?lat=${latF}&long=${lonF}&zoom=10`;
     return `<div class="loc-row">
       <span class="chip clickable" data-entity="${entityId}">📍 ${latF}, ${lonF}</span>
-      <a class="map-link" href="${url}" target="_blank" rel="noopener">Map ↗</a>
+      <a class="map-link" href="${url}" target="_blank" rel="noopener">${t("card.map_link")}</a>
     </div>`;
   }
 
   // ── Hub rendering ──────────────────────────────────────────────────────────
 
-  private _renderHub(hub: HubInfo): string {
+  private _renderHub(hub: HubInfo, t: LocalizeFunc): string {
     const { pubkey, name } = hub;
     const e = (m: string) => this._hubEntity(pubkey, name, m);
     const hubCfg = this._hubCfg(pubkey);
@@ -223,11 +225,11 @@ export class MeshcoreCard extends HTMLElement {
         <div class="node-header">
           <div class="node-left">
             <span class="status-dot ${online ? "dot-online" : "dot-offline"}"></span>
-            <span class="node-name">Hub: ${name.replace(/_/g, " ")}</span>
+            <span class="node-name">${t("card.hub_name", { name: name.replace(/_/g, " ") })}</span>
             <span class="node-key dim clickable" data-entity="${statusId ?? countId}">(${pubkey})</span>
           </div>
           <div class="node-right">
-            ${nodeCount !== null ? `<span class="count-badge clickable" data-entity="${countId}">◈ ${nodeCount} Nodes</span>` : ""}
+            ${nodeCount !== null ? `<span class="count-badge clickable" data-entity="${countId}">${t("card.nodes_count", { n: nodeCount })}</span>` : ""}
           </div>
         </div>
 
@@ -235,17 +237,17 @@ export class MeshcoreCard extends HTMLElement {
 
         ${battPct !== null && Number(battPct) !== 0 ? `
           <div class="bar-row">
-            <span class="bar-label">🔋 Battery</span>
+            <span class="bar-label">${t("card.battery_label")}</span>
             <span class="bar-val clickable" data-entity="${battPctId}" style="color:${battCol}">${battPct}%</span>
           </div>
           ${this._progressBar(battPct, battCol)}` : ""}
 
         <div class="chip-row">
           ${battV !== null && parseFloat(battV) >= 0.001 ? this._chip(battVId, "⚡", parseFloat(battV).toFixed(3) + "V") : ""}
-          ${this._exists(ch1VId) ? this._chip(ch1VId, "Ch1 ", (this._val(ch1VId) ?? "—") + "V") : ""}
-          ${this._exists(rateLimId) ? this._chip(rateLimId, "Rate ", (this._val(rateLimId) ?? "—") + " tok") : ""}
+          ${this._exists(ch1VId) ? this._chip(ch1VId, t("card.chip_ch1"), (this._val(ch1VId) ?? "—") + "V") : ""}
+          ${this._exists(rateLimId) ? this._chip(rateLimId, t("card.chip_rate"), (this._val(rateLimId) ?? "—") + " tok") : ""}
         </div>
-        ${lat !== null && lon !== null ? this._locLink(lat, lon, latId) : ""}
+        ${lat !== null && lon !== null ? this._locLink(lat, lon, latId, t) : ""}
 
         ${showRf ? `
           <div class="rf-row">
@@ -257,7 +259,7 @@ export class MeshcoreCard extends HTMLElement {
 
         ${mqttIds.length ? `
           <div class="mqtt-row">
-            <span class="mqtt-label">MQTT</span>
+            <span class="mqtt-label">${t("card.mqtt_label")}</span>
             ${mqttIds.map((id) => {
               const v   = this._val(id);
               const lbl = (this._attr(id, "server") as string | null) ||
@@ -274,7 +276,7 @@ export class MeshcoreCard extends HTMLElement {
 
   // ── Node rendering ─────────────────────────────────────────────────────────
 
-  private _renderNode(node: NodeInfo): string {
+  private _renderNode(node: NodeInfo, t: LocalizeFunc): string {
     const { name, deviceId, ePrefix, eSuffix } = node;
     const p = (m: string) => this._findEntityByDevice(deviceId, m, ePrefix, eSuffix);
     const nodeCfg = this._nodeCfg(name);
@@ -327,18 +329,18 @@ export class MeshcoreCard extends HTMLElement {
 
     const successes = this._val(successId);
     const online    = successes !== null ? Number(successes) > 0 : isOnlineState(status);
-    const lastSeen  = formatLastSeen(lastAdv);
+    const lastSeen  = formatLastSeen(lastAdv, t);
 
     // Detect node role by entity presence
     const isRepeater = !!(airtimeId || rxAirtimeId || noiseId);
     const isSensor   = !isRepeater && !!(p("temperature") || p("humidity") || p("illuminance"));
 
     const trafficCells: TrafficCell[] = [
-      { label: "Sent",      id: sentId,    cls: "" },
-      { label: "Received",  id: receivedId, cls: "" },
-      { label: "Relayed",   id: relayedId, cls: "blue" },
-      { label: "Canceled",  id: canceledId, cls: "red" },
-      { label: "Duplicate", id: dupId,     cls: "yellow" },
+      { label: t("card.traffic_sent"),      id: sentId,    cls: "" },
+      { label: t("card.traffic_received"),  id: receivedId, cls: "" },
+      { label: t("card.traffic_relayed"),   id: relayedId, cls: "blue" },
+      { label: t("card.traffic_canceled"),  id: canceledId, cls: "red" },
+      { label: t("card.traffic_duplicate"), id: dupId,     cls: "yellow" },
     ].filter((c) => this._exists(c.id));
 
     const airtime   = this._val(airtimeId);
@@ -351,10 +353,10 @@ export class MeshcoreCard extends HTMLElement {
     const rxRate    = rxRateId ? this._val(rxRateId) : null;
 
     const telemetryCells: TelemetryCell[] = [
-      { label: "Temp",     id: tempId,  unit: "°C" },
-      { label: "Humidity", id: humidId, unit: "%" },
-      { label: "Lux",      id: illumId, unit: " lx" },
-      { label: "Pressure", id: pressId, unit: " hPa" },
+      { label: t("card.telemetry_temp"),     id: tempId,  unit: "°C" },
+      { label: t("card.telemetry_humidity"), id: humidId, unit: "%" },
+      { label: t("card.telemetry_lux"),      id: illumId, unit: " lx" },
+      { label: t("card.telemetry_pressure"), id: pressId, unit: " hPa" },
     ].filter((c) => this._exists(c.id));
 
     return `
@@ -364,11 +366,11 @@ export class MeshcoreCard extends HTMLElement {
           <div class="node-left">
             <span class="status-dot ${online ? "dot-online" : "dot-offline"}"></span>
             <span class="node-name">${name.replace(/_/g, " ")}</span>
-            ${isRepeater ? `<span class="type-badge">Repeater</span>` : isSensor ? `<span class="type-badge">Sensor</span>` : ""}
+            ${isRepeater ? `<span class="type-badge">${t("card.type_repeater")}</span>` : isSensor ? `<span class="type-badge">${t("card.type_sensor")}</span>` : ""}
           </div>
           <div class="node-right">
-            ${rssi !== null ? `<span class="badge ${rssiClass(rssi)} clickable" data-entity="${rssiId}">RSSI ${rssi} dBm</span>` : ""}
-            ${snr  !== null ? `<span class="badge clickable" data-entity="${snrId}">SNR ${snr} dB</span>` : ""}
+            ${rssi !== null ? `<span class="badge ${rssiClass(rssi)} clickable" data-entity="${rssiId}">${t("card.rssi_badge", { value: rssi })}</span>` : ""}
+            ${snr  !== null ? `<span class="badge clickable" data-entity="${snrId}">${t("card.snr_badge", { value: snr })}</span>` : ""}
             ${pathLen !== null ? `<span class="badge clickable" data-entity="${pathId}">${pathLen}↑</span>` : ""}
             ${lastSeen ? `<span class="badge dim">${lastSeen}</span>` : ""}
           </div>
@@ -379,7 +381,7 @@ export class MeshcoreCard extends HTMLElement {
 
         ${battPct !== null && Number(battPct) !== 0 ? `
           <div class="bar-row">
-            <span class="bar-label">🔋 Battery</span>
+            <span class="bar-label">${t("card.battery_label")}</span>
             <span class="bar-label-right">
               ${battV !== null && parseFloat(String(battV)) >= 0.001 ? `<span class="clickable" data-entity="${battVId}">⚡ ${parseFloat(String(battV)).toFixed(3)}V</span>` : ""}
               <span class="bar-val clickable" data-entity="${battPctId}" style="color:${batteryColor(battPct)}">${battPct}%</span>
@@ -396,25 +398,25 @@ export class MeshcoreCard extends HTMLElement {
 
           ${airtime !== null ? `
             <div class="bar-row">
-              <span class="bar-label">📡 TX Airtime</span>
+              <span class="bar-label">${t("card.tx_airtime_label")}</span>
               <span class="bar-val clickable" data-entity="${airtimeId}">${parseFloat(airtime).toFixed(1)}%</span>
             </div>
             ${this._progressBar(airtime, "var(--primary-color)")}` : ""}
 
           ${rxAirtime !== null ? `
             <div class="bar-row">
-              <span class="bar-label">📡 RX Airtime</span>
+              <span class="bar-label">${t("card.rx_airtime_label")}</span>
               <span class="bar-val clickable" data-entity="${rxAirtimeId}">${parseFloat(rxAirtime).toFixed(1)}%</span>
             </div>
             ${this._progressBar(rxAirtime, "var(--accent-color)")}` : ""}
 
           ${noise !== null || uptime !== null || txRate !== null || rxRate !== null || queue !== null ? `
             <div class="node-chip-row">
-              ${noise   !== null ? this._chip(noiseId,  "Noise Floor ", noise + " dBm") : ""}
-              ${uptime  !== null ? this._chip(uptimeId, "Up ", uptime) : ""}
-              ${txRate  !== null ? this._chip(txRateId, "TX/min ", txRate) : ""}
-              ${rxRate  !== null ? this._chip(rxRateId, "RX/min ", rxRate) : ""}
-              ${queue   !== null ? this._chip(queueId,  "Queue ", queue) : ""}
+              ${noise   !== null ? this._chip(noiseId,  t("card.chip_noise_floor"), noise + " dBm") : ""}
+              ${uptime  !== null ? this._chip(uptimeId, t("card.chip_uptime"), uptime) : ""}
+              ${txRate  !== null ? this._chip(txRateId, t("card.chip_tx_rate"), txRate) : ""}
+              ${rxRate  !== null ? this._chip(rxRateId, t("card.chip_rx_rate"), rxRate) : ""}
+              ${queue   !== null ? this._chip(queueId,  t("card.chip_queue"), queue) : ""}
             </div>` : ""}
 
           ${trafficCells.length ? `
@@ -428,9 +430,9 @@ export class MeshcoreCard extends HTMLElement {
               }).join("")}
             </div>` : ""}
 
-          ${lat !== null && lon !== null ? this._locLink(lat, lon, locId) : ""}
+          ${lat !== null && lon !== null ? this._locLink(lat, lon, locId, t) : ""}
         ` : `
-          ${lat !== null && lon !== null ? this._locLink(lat, lon, locId) : ""}
+          ${lat !== null && lon !== null ? this._locLink(lat, lon, locId, t) : ""}
         `}
 
         ${isSensor && telemetryCells.length ? `
@@ -448,10 +450,11 @@ export class MeshcoreCard extends HTMLElement {
 
   private _render(): void {
     if (!this._hass || !this._config) return;
+    const t = makeLocalize(this._hass.language ?? this._hass.locale?.language ?? "en");
 
     const allHubs = this._discoverHubs();
     if (!allHubs.length) {
-      this._setBody(`<div class="empty">No MeshCore hubs found.<br>Check the meshcore integration is installed.</div>`);
+      this._setBody(`<div class="empty">${t("card.empty_hubs")}</div>`);
       return;
     }
 
@@ -461,14 +464,14 @@ export class MeshcoreCard extends HTMLElement {
     );
 
     const hubsHtml = visibleHubs.length
-      ? `<div class="section-label">HUBS</div>` +
-        visibleHubs.map((hub) => this._renderHub(hub)).join("")
+      ? `<div class="section-label">${t("card.section_hubs")}</div>` +
+        visibleHubs.map((hub) => this._renderHub(hub, t)).join("")
       : "";
 
     const nodesHtml = nodes.length
       ? `<div class="nodes-section">
-          <div class="section-label">REMOTE NODES</div>
-          ${nodes.map((n) => this._renderNode(n)).join("")}
+          <div class="section-label">${t("card.section_nodes")}</div>
+          ${nodes.map((n) => this._renderNode(n, t)).join("")}
          </div>`
       : "";
 
@@ -479,7 +482,26 @@ export class MeshcoreCard extends HTMLElement {
   }
 
   private _setBody(body: string): void {
-    this.shadowRoot!.innerHTML = `<style>${STYLES}</style><ha-card>${body}</ha-card>`;
+    const constrained = !!this._config?.grid_options?.rows;
+    const cls = constrained ? " class=\"grid-rows\"" : "";
+    this.shadowRoot!.innerHTML = `<style>${STYLES}</style><ha-card${cls}>${body}</ha-card>`;
+    if (constrained) this._scheduleTrim(".node-block");
+  }
+
+  private _scheduleTrim(rowSelector: string): void {
+    if (this._trimTimer !== null) cancelAnimationFrame(this._trimTimer);
+    this.style.opacity = "0";
+    this._trimTimer = requestAnimationFrame(() => {
+      this._trimTimer = null;
+      const card = this.shadowRoot!.querySelector("ha-card") as HTMLElement | null;
+      const h = card?.clientHeight ?? 0;
+      if (card && h) {
+        for (const el of Array.from(card.querySelectorAll<HTMLElement>(rowSelector))) {
+          el.style.visibility = el.offsetTop + el.offsetHeight > h ? "hidden" : "";
+        }
+      }
+      this.style.opacity = "";
+    });
   }
 
   getCardSize(): number {

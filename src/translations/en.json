@@ -1,0 +1,53 @@
+{
+  "card": {
+    "section_hubs": "HUBS",
+    "section_nodes": "REMOTE NODES",
+    "section_contacts": "CONTACTS",
+    "hub_name": "Hub: {name}",
+    "nodes_count": "◈ {n} Nodes",
+    "empty_hubs": "No MeshCore hubs found.<br>Check the meshcore integration is installed.",
+    "empty_contacts": "No MeshCore contact nodes found.<br>Check the meshcore integration is installed.",
+    "map_link": "Map ↗",
+    "unknown_location": "Unknown Location",
+    "mqtt_label": "MQTT",
+    "battery_label": "🔋 Battery",
+    "tx_airtime_label": "📡 TX Airtime",
+    "rx_airtime_label": "📡 RX Airtime",
+    "type_repeater": "Repeater",
+    "type_sensor": "Sensor",
+    "rssi_badge": "RSSI {value} dBm",
+    "snr_badge": "SNR {value} dB",
+    "chip_ch1": "Ch1 ",
+    "chip_rate": "Rate ",
+    "chip_noise_floor": "Noise Floor ",
+    "chip_uptime": "Up ",
+    "chip_tx_rate": "TX/min ",
+    "chip_rx_rate": "RX/min ",
+    "chip_queue": "Queue ",
+    "traffic_sent": "Sent",
+    "traffic_received": "Received",
+    "traffic_relayed": "Relayed",
+    "traffic_canceled": "Canceled",
+    "traffic_duplicate": "Duplicate",
+    "telemetry_temp": "Temp",
+    "telemetry_humidity": "Humidity",
+    "telemetry_lux": "Lux",
+    "telemetry_pressure": "Pressure"
+  },
+  "time": {
+    "s_ago": "{n}s ago",
+    "m_ago": "{n}m ago",
+    "h_ago": "{n}h ago",
+    "d_ago": "{n}d ago"
+  },
+  "editor": {
+    "show_this_hub": "Show this hub",
+    "show_this_node": "Show this node",
+    "battery_entity": "Battery % entity (blank = auto-detect)",
+    "voltage_entity": "Voltage entity (blank = auto-detect)",
+    "location_entity": "Location entity with latitude/longitude attributes (optional)",
+    "hub_section_title": "Hub: {name} ({key})",
+    "max_contact_age": "Maximum contact age (days)",
+    "no_hubs_detected": "No MeshCore hubs detected yet. Add the card, then edit to configure."
+  }
+}
