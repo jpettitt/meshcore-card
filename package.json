@@ -7,9 +7,13 @@
     "build": "rollup -c rollup.config.mjs",
     "watch": "rollup -c rollup.config.mjs --watch",
     "typecheck": "tsc --noEmit",
-    "dev": "npm run typecheck && npm run watch"
+    "dev": "npm run typecheck && npm run watch",
+    "translate": "node scripts/translate.mjs",
+    "translate:dry": "node scripts/translate.mjs --dry-run",
+    "check-translations": "node scripts/check-translations.mjs"
   },
   "devDependencies": {
+    "@anthropic-ai/sdk": "^0.80.0",
     "@rollup/plugin-json": "^6.1.0",
     "@rollup/plugin-node-resolve": "^15.2.3",
     "@rollup/plugin-terser": "^0.4.4",
