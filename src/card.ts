@@ -488,21 +488,18 @@ export class MeshcoreCard extends HTMLElement {
 
   private _scheduleTrim(rowSelector: string): void {
     if (this._trimTimer !== null) cancelAnimationFrame(this._trimTimer);
-    this.style.visibility = "hidden";
-    let tries = 0;
-    const attempt = () => {
-      const card = this.shadowRoot!.querySelector("ha-card") as HTMLElement | null;
-      const h = (card?.clientHeight ?? 0) || this.clientHeight;
-      if (!h && tries++ < 10) { this._trimTimer = requestAnimationFrame(attempt); return; }
+    this.style.opacity = "0";
+    this._trimTimer = requestAnimationFrame(() => {
       this._trimTimer = null;
+      const card = this.shadowRoot!.querySelector("ha-card") as HTMLElement | null;
+      const h = card?.clientHeight ?? 0;
       if (card && h) {
         for (const el of Array.from(card.querySelectorAll<HTMLElement>(rowSelector))) {
           el.style.visibility = el.offsetTop + el.offsetHeight > h ? "hidden" : "";
         }
       }
-      this.style.visibility = "";
-    };
-    this._trimTimer = requestAnimationFrame(attempt);
+      this.style.opacity = "";
+    });
   }
 
   getCardSize(): number {
