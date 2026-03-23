@@ -93,4 +93,7 @@ export const STYLES: string = `
   .map-link:hover { opacity: 0.75; }
 
   .empty { text-align: center; color: var(--secondary-text-color); font-size: var(--paper-font-caption_-_font-size, 12px); padding: 24px 16px; line-height: 1.7; }
+
+  /* Grid row constraint — clip content to the assigned grid height */
+  ha-card.grid-rows { height: 100%; overflow: hidden; }
 `;

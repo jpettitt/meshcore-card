@@ -1,1 +1,53 @@
-{}
+{
+  "card": {
+    "section_hubs": "HUBS",
+    "section_nodes": "ENTFERNTE KNOTEN",
+    "section_contacts": "KONTAKTE",
+    "hub_name": "Hub: {name}",
+    "nodes_count": "◈ {n} Knoten",
+    "empty_hubs": "Keine MeshCore-Hubs gefunden.<br>Prüfen Sie, ob die MeshCore-Integration installiert ist.",
+    "empty_contacts": "Keine MeshCore-Kontaktknoten gefunden.<br>Prüfen Sie, ob die MeshCore-Integration installiert ist.",
+    "map_link": "Karte ↗",
+    "unknown_location": "Unbekannter Standort",
+    "mqtt_label": "MQTT",
+    "battery_label": "🔋 Batterie",
+    "tx_airtime_label": "📡 TX Airtime",
+    "rx_airtime_label": "📡 RX Airtime",
+    "type_repeater": "Repeater",
+    "type_sensor": "Sensor",
+    "rssi_badge": "RSSI {value} dBm",
+    "snr_badge": "SNR {value} dB",
+    "chip_ch1": "Kanal 1 ",
+    "chip_rate": "Rate ",
+    "chip_noise_floor": "Rauschpegel ",
+    "chip_uptime": "Laufzeit ",
+    "chip_tx_rate": "TX/Min ",
+    "chip_rx_rate": "RX/Min ",
+    "chip_queue": "Warteschlange ",
+    "traffic_sent": "Gesendet",
+    "traffic_received": "Empfangen",
+    "traffic_relayed": "Weitergeleitet",
+    "traffic_canceled": "Abgebrochen",
+    "traffic_duplicate": "Duplikat",
+    "telemetry_temp": "Temp",
+    "telemetry_humidity": "Feuchtigkeit",
+    "telemetry_lux": "Lux",
+    "telemetry_pressure": "Druck"
+  },
+  "time": {
+    "s_ago": "vor {n}s",
+    "m_ago": "vor {n}m",
+    "h_ago": "vor {n}h",
+    "d_ago": "vor {n}d"
+  },
+  "editor": {
+    "show_this_hub": "Diesen Hub anzeigen",
+    "show_this_node": "Diesen Knoten anzeigen",
+    "battery_entity": "Batterie % Entität (leer = Auto-Erkennung)",
+    "voltage_entity": "Spannungs-Entität (leer = Auto-Erkennung)",
+    "location_entity": "Standort-Entität mit Breitengrad/Längengrad-Attributen (optional)",
+    "hub_section_title": "Hub: {name} ({key})",
+    "max_contact_age": "Maximales Kontakt-Alter (Tage)",
+    "no_hubs_detected": "Noch keine MeshCore-Hubs erkannt. Fügen Sie die Karte hinzu und bearbeiten Sie sie anschließend zur Konfiguration."
+  }
+}

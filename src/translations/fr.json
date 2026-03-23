@@ -1,1 +1,53 @@
-{}
+{
+  "card": {
+    "section_hubs": "HUBS",
+    "section_nodes": "NŒUDS DISTANTS",
+    "section_contacts": "CONTACTS",
+    "hub_name": "Hub : {name}",
+    "nodes_count": "◈ {n} Nœuds",
+    "empty_hubs": "Aucun hub MeshCore trouvé.<br>Vérifiez que l'intégration MeshCore est installée.",
+    "empty_contacts": "Aucun nœud de contact MeshCore trouvé.<br>Vérifiez que l'intégration MeshCore est installée.",
+    "map_link": "Carte ↗",
+    "unknown_location": "Localisation inconnue",
+    "mqtt_label": "MQTT",
+    "battery_label": "🔋 Batterie",
+    "tx_airtime_label": "📡 Temps d'antenne TX",
+    "rx_airtime_label": "📡 Temps d'antenne RX",
+    "type_repeater": "Répéteur",
+    "type_sensor": "Capteur",
+    "rssi_badge": "RSSI {value} dBm",
+    "snr_badge": "SNR {value} dB",
+    "chip_ch1": "Can1 ",
+    "chip_rate": "Débit ",
+    "chip_noise_floor": "Bruit de fond ",
+    "chip_uptime": "Uptime ",
+    "chip_tx_rate": "TX/min ",
+    "chip_rx_rate": "RX/min ",
+    "chip_queue": "File ",
+    "traffic_sent": "Envoyé",
+    "traffic_received": "Reçu",
+    "traffic_relayed": "Relayé",
+    "traffic_canceled": "Annulé",
+    "traffic_duplicate": "Doublon",
+    "telemetry_temp": "Temp",
+    "telemetry_humidity": "Humidité",
+    "telemetry_lux": "Lux",
+    "telemetry_pressure": "Pression"
+  },
+  "time": {
+    "s_ago": "il y a {n}s",
+    "m_ago": "il y a {n}m",
+    "h_ago": "il y a {n}h",
+    "d_ago": "il y a {n}j"
+  },
+  "editor": {
+    "show_this_hub": "Afficher ce hub",
+    "show_this_node": "Afficher ce nœud",
+    "battery_entity": "Entité % batterie (vide = auto-détection)",
+    "voltage_entity": "Entité de tension (vide = auto-détection)",
+    "location_entity": "Entité de localisation avec attributs latitude/longitude (optionnel)",
+    "hub_section_title": "Hub : {name} ({key})",
+    "max_contact_age": "Âge maximum du contact (jours)",
+    "no_hubs_detected": "Aucun hub MeshCore détecté pour l'instant. Ajoutez la carte, puis éditez-la pour la configurer."
+  }
+}

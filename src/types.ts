@@ -44,10 +44,24 @@ export interface NodeConfig {
   location_entity?: string;
 }
 
+export interface GridOptions {
+  rows?: number;
+  columns?: number;
+  min_rows?: number;
+  max_rows?: number;
+}
+
 export interface MeshcoreCardConfig {
   type?: string;
   hubs?: Record<string, HubConfig | boolean>;
   nodes?: Record<string, NodeConfig | boolean>;
+  grid_options?: GridOptions;
+}
+
+export interface MeshcoreContactCardConfig {
+  type?: string;
+  max_contact_age_days?: number;
+  grid_options?: GridOptions;
 }
 
 // ── Discovery result types ────────────────────────────────────────────────────

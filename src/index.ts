@@ -1,5 +1,6 @@
 import { MeshcoreCard } from "./card.js";
 import { MeshcoreCardEditor } from "./editor.js";
+import { MeshcoreContactCard, MeshcoreContactCardEditor } from "./contact-card.js";
 
 // ── Registration ──────────────────────────────────────────────────────────────
 
@@ -9,6 +10,12 @@ if (!customElements.get("meshcore-card")) {
 if (!customElements.get("meshcore-card-editor")) {
   customElements.define("meshcore-card-editor", MeshcoreCardEditor);
 }
+if (!customElements.get("meshcore-contact-card")) {
+  customElements.define("meshcore-contact-card", MeshcoreContactCard);
+}
+if (!customElements.get("meshcore-contact-card-editor")) {
+  customElements.define("meshcore-contact-card-editor", MeshcoreContactCardEditor);
+}
 
 window.customCards = window.customCards || [];
 if (!window.customCards.find((c) => c.type === "meshcore-card")) {
@@ -16,6 +23,15 @@ if (!window.customCards.find((c) => c.type === "meshcore-card")) {
     type: "meshcore-card",
     name: "MeshCore Card",
     description: "Displays node statistics from the MeshCore integration",
+    preview: true,
+    documentationURL: "https://github.com/jpettitt/meshcore-card",
+  });
+}
+if (!window.customCards.find((c) => c.type === "meshcore-contact-card")) {
+  window.customCards.push({
+    type: "meshcore-contact-card",
+    name: "MeshCore Contact Card",
+    description: "Lists all MeshCore contact nodes sorted by most recently heard",
     preview: true,
     documentationURL: "https://github.com/jpettitt/meshcore-card",
   });

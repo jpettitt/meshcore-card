@@ -1,1 +1,53 @@
-{}
+{
+  "card": {
+    "section_hubs": "HUBS",
+    "section_nodes": "AFSTANDS-NODES",
+    "section_contacts": "CONTACTEN",
+    "hub_name": "Hub: {name}",
+    "nodes_count": "◈ {n} Nodes",
+    "empty_hubs": "Geen MeshCore-hubs gevonden.<br>Controleer of de MeshCore-integratie is geïnstalleerd.",
+    "empty_contacts": "Geen MeshCore-contactnodes gevonden.<br>Controleer of de MeshCore-integratie is geïnstalleerd.",
+    "map_link": "Kaart ↗",
+    "unknown_location": "Onbekende locatie",
+    "mqtt_label": "MQTT",
+    "battery_label": "🔋 Batterij",
+    "tx_airtime_label": "📡 TX Airtime",
+    "rx_airtime_label": "📡 RX Airtime",
+    "type_repeater": "Repeater",
+    "type_sensor": "Sensor",
+    "rssi_badge": "RSSI {value} dBm",
+    "snr_badge": "SNR {value} dB",
+    "chip_ch1": "K1 ",
+    "chip_rate": "Snelheid ",
+    "chip_noise_floor": "Ruissvloer ",
+    "chip_uptime": "Uptime ",
+    "chip_tx_rate": "TX/min ",
+    "chip_rx_rate": "RX/min ",
+    "chip_queue": "Wachtrij ",
+    "traffic_sent": "Verzonden",
+    "traffic_received": "Ontvangen",
+    "traffic_relayed": "Doorgestuurd",
+    "traffic_canceled": "Geannuleerd",
+    "traffic_duplicate": "Duplicaat",
+    "telemetry_temp": "Temp",
+    "telemetry_humidity": "Vochtigheid",
+    "telemetry_lux": "Lux",
+    "telemetry_pressure": "Druk"
+  },
+  "time": {
+    "s_ago": "{n}s geleden",
+    "m_ago": "{n}m geleden",
+    "h_ago": "{n}u geleden",
+    "d_ago": "{n}d geleden"
+  },
+  "editor": {
+    "show_this_hub": "Toon deze hub",
+    "show_this_node": "Toon deze node",
+    "battery_entity": "Batterij % entiteit (leeg = auto-detectie)",
+    "voltage_entity": "Spanningsentiteit (leeg = auto-detectie)",
+    "location_entity": "Locatie-entiteit met breedtegraad/lengtegraad attributen (optioneel)",
+    "hub_section_title": "Hub: {name} ({key})",
+    "max_contact_age": "Maximale contactleeftijd (dagen)",
+    "no_hubs_detected": "Nog geen MeshCore-hubs gedetecteerd. Voeg de kaart toe en bewerk deze om te configureren."
+  }
+}
