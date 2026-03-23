@@ -25,6 +25,7 @@ export class MeshcoreCard extends HTMLElement {
   private _fp: string | null = null;
   private _lastRender = 0;
   private _renderTimer: ReturnType<typeof setTimeout> | null = null;
+  private _resizeObserver: ResizeObserver | null = null;
 
   constructor() {
     super();
@@ -479,7 +480,28 @@ export class MeshcoreCard extends HTMLElement {
   }
 
   private _setBody(body: string): void {
-    this.shadowRoot!.innerHTML = `<style>${STYLES}</style><ha-card>${body}</ha-card>`;
+    const constrained = !!this._config?.grid_options?.rows;
+    const cls = constrained ? " class=\"grid-rows\"" : "";
+    const vis = constrained ? " style=\"visibility:hidden\"" : "";
+    this.shadowRoot!.innerHTML = `<style>${STYLES}</style><ha-card${cls}${vis}>${body}</ha-card>`;
+    if (constrained) this._installTrim(".node-block");
+  }
+
+  private _installTrim(rowSelector: string): void {
+    const card = this.shadowRoot!.querySelector("ha-card") as HTMLElement;
+    const trim = () => {
+      const h = this.clientHeight || card.clientHeight;
+      if (!h) return;
+      for (const el of Array.from(card.querySelectorAll<HTMLElement>(rowSelector))) {
+        el.style.display = el.offsetTop + el.offsetHeight > h ? "none" : "";
+      }
+      card.style.visibility = "";
+    };
+    this._resizeObserver?.disconnect();
+    this._resizeObserver = new ResizeObserver(trim);
+    this._resizeObserver.observe(this);
+    const retry = () => { trim(); if (!this.clientHeight) requestAnimationFrame(retry); };
+    requestAnimationFrame(retry);
   }
 
   getCardSize(): number {

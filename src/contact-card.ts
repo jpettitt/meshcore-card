@@ -177,7 +177,8 @@ export class MeshcoreContactCard extends HTMLElement {
   private _setBody(body: string): void {
     const constrained = !!this._config?.grid_options?.rows;
     const cls = constrained ? " class=\"grid-rows\"" : "";
-    this.shadowRoot!.innerHTML = `<style>${STYLES}${CONTACT_STYLES}</style><ha-card${cls}>${body}</ha-card>`;
+    const vis = constrained ? " style=\"visibility:hidden\"" : "";
+    this.shadowRoot!.innerHTML = `<style>${STYLES}${CONTACT_STYLES}</style><ha-card${cls}${vis}>${body}</ha-card>`;
     if (constrained) this._installTrim(".contact-row");
   }
 
@@ -189,6 +190,7 @@ export class MeshcoreContactCard extends HTMLElement {
       for (const el of Array.from(card.querySelectorAll<HTMLElement>(rowSelector))) {
         el.style.display = el.offsetTop + el.offsetHeight > h ? "none" : "";
       }
+      card.style.visibility = "";
     };
     this._resizeObserver?.disconnect();
     this._resizeObserver = new ResizeObserver(trim);
