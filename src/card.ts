@@ -496,7 +496,7 @@ export class MeshcoreCard extends HTMLElement {
       const card = this.shadowRoot!.querySelector("ha-card") as HTMLElement | null;
       if (!card) return;
       for (const el of Array.from(card.querySelectorAll<HTMLElement>(rowSelector))) {
-        el.style.display = el.offsetTop + el.offsetHeight > h ? "none" : "";
+        el.style.visibility = el.offsetTop + el.offsetHeight > h ? "hidden" : "";
       }
       this.style.visibility = "";
     };
