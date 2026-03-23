@@ -60,7 +60,7 @@ export class MeshcoreContactCard extends HTMLElement {
   private _fp: string | null = null;
   private _lastRender = 0;
   private _renderTimer: ReturnType<typeof setTimeout> | null = null;
-  private _resizeObserver: ResizeObserver | null = null;
+  private _trimTimer: ReturnType<typeof requestAnimationFrame> | null = null;
 
   constructor() {
     super();
@@ -177,26 +177,25 @@ export class MeshcoreContactCard extends HTMLElement {
   private _setBody(body: string): void {
     const constrained = !!this._config?.grid_options?.rows;
     const cls = constrained ? " class=\"grid-rows\"" : "";
-    const vis = constrained ? " style=\"visibility:hidden\"" : "";
-    this.shadowRoot!.innerHTML = `<style>${STYLES}${CONTACT_STYLES}</style><ha-card${cls}${vis}>${body}</ha-card>`;
-    if (constrained) this._installTrim(".contact-row");
+    this.shadowRoot!.innerHTML = `<style>${STYLES}${CONTACT_STYLES}</style><ha-card${cls}>${body}</ha-card>`;
+    if (constrained) this._scheduleTrim(".contact-row");
   }
 
-  private _installTrim(rowSelector: string): void {
-    const card = this.shadowRoot!.querySelector("ha-card") as HTMLElement;
-    const trim = () => {
-      const h = this.clientHeight || card.clientHeight;
-      if (!h) return;
+  private _scheduleTrim(rowSelector: string): void {
+    if (this._trimTimer !== null) cancelAnimationFrame(this._trimTimer);
+    this.style.visibility = "hidden";
+    const attempt = () => {
+      const h = this.clientHeight;
+      if (!h) { this._trimTimer = requestAnimationFrame(attempt); return; }
+      this._trimTimer = null;
+      const card = this.shadowRoot!.querySelector("ha-card") as HTMLElement | null;
+      if (!card) return;
       for (const el of Array.from(card.querySelectorAll<HTMLElement>(rowSelector))) {
         el.style.display = el.offsetTop + el.offsetHeight > h ? "none" : "";
       }
-      card.style.visibility = "";
+      this.style.visibility = "";
     };
-    this._resizeObserver?.disconnect();
-    this._resizeObserver = new ResizeObserver(trim);
-    this._resizeObserver.observe(this);
-    const retry = () => { trim(); if (!this.clientHeight) requestAnimationFrame(retry); };
-    requestAnimationFrame(retry);
+    this._trimTimer = requestAnimationFrame(attempt);
   }
 
   getCardSize(): number {
