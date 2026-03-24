@@ -64,6 +64,11 @@ export interface MeshcoreContactCardConfig {
   grid_options?: GridOptions;
 }
 
+export interface MeshcoreChannelCardConfig {
+  type?: string;
+  grid_options?: GridOptions;
+}
+
 // ── Discovery result types ────────────────────────────────────────────────────
 
 export interface HubInfo {
