@@ -1,6 +1,7 @@
 import { MeshcoreCard } from "./card.js";
 import { MeshcoreCardEditor } from "./editor.js";
 import { MeshcoreContactCard, MeshcoreContactCardEditor } from "./contact-card.js";
+import { MeshcoreChannelCard, MeshcoreChannelCardEditor } from "./channel-card.js";
 
 // ── Registration ──────────────────────────────────────────────────────────────
 
@@ -32,6 +33,22 @@ if (!window.customCards.find((c) => c.type === "meshcore-contact-card")) {
     type: "meshcore-contact-card",
     name: "MeshCore Contact Card",
     description: "Lists all MeshCore contact nodes sorted by most recently heard",
+    preview: true,
+    documentationURL: "https://github.com/jpettitt/meshcore-card",
+  });
+}
+
+if (!customElements.get("meshcore-channel-card")) {
+  customElements.define("meshcore-channel-card", MeshcoreChannelCard);
+}
+if (!customElements.get("meshcore-channel-card-editor")) {
+  customElements.define("meshcore-channel-card-editor", MeshcoreChannelCardEditor);
+}
+if (!window.customCards.find((c) => c.type === "meshcore-channel-card")) {
+  window.customCards.push({
+    type: "meshcore-channel-card",
+    name: "MeshCore Channel Card",
+    description: "Shows active MeshCore channels by hub",
     preview: true,
     documentationURL: "https://github.com/jpettitt/meshcore-card",
   });

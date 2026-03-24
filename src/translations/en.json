@@ -32,7 +32,9 @@
     "telemetry_temp": "Temp",
     "telemetry_humidity": "Humidity",
     "telemetry_lux": "Lux",
-    "telemetry_pressure": "Pressure"
+    "telemetry_pressure": "Pressure",
+    "section_channels": "CHANNELS",
+    "empty_channels": "No MeshCore channels found.<br>Check the meshcore integration is installed."
   },
   "time": {
     "s_ago": "{n}s ago",
