@@ -10,7 +10,7 @@ Custom [Home Assistant](https://www.home-assistant.io/) Lovelace cards that disp
 ## Requirements
 
 - **Home Assistant** 2023.x or later
-- **[MeshCore Integration](https://github.com/meshcore-dev/meshcore-ha)** — must be installed and configured. The cards read hub, node, contact, and channel data directly from the devices and entities registered by this integration.
+- **[MeshCore Integration](https://github.com/meshcore-dev/meshcore-ha)** — must be installed and configured. The cards read hub, node, and contact data directly from the devices and entities registered by this integration.
 
 ---
 
