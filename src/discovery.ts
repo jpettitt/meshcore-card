@@ -16,11 +16,14 @@ export function discoverHubs(hass: HomeAssistant): HubInfo[] {
 export function discoverNodes(hass: HomeAssistant): NodeInfo[] {
   if (!hass.entities || !hass.devices) return [];
 
-  // Collect device_ids that belong to hub devices (have a node_count entity)
+  // Map hub device_id → hub pubkey
   const hubDeviceIds = new Set<string>();
+  const hubDeviceToPubkey = new Map<string, string>();
   for (const [entityId, info] of Object.entries(hass.entities)) {
-    if (/node_count/.test(entityId) && info.device_id) {
+    const m = entityId.match(/^sensor\.meshcore_([a-f0-9]+)_node_count/);
+    if (m && info.device_id) {
       hubDeviceIds.add(info.device_id);
+      hubDeviceToPubkey.set(info.device_id, m[1]);
     }
   }
 
@@ -41,6 +44,9 @@ export function discoverNodes(hass: HomeAssistant): NodeInfo[] {
     const device = hass.devices[deviceId];
     if (!device) continue;
 
+    // Resolve parent hub via via_device_id
+    const hubPubkey = hubDeviceToPubkey.get(device.via_device_id ?? "") ?? null;
+
     const deviceEntityIds = Object.entries(hass.entities)
       .filter(([, info]) => info.device_id === deviceId)
       .map(([id]) => id);
@@ -49,6 +55,7 @@ export function discoverNodes(hass: HomeAssistant): NodeInfo[] {
     nodes.push({
       name: device.name_by_user || device.name || deviceId,
       deviceId,
+      hubPubkey,
       ePrefix,
       eSuffix,
     });

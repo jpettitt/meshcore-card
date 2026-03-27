@@ -1,6 +1,6 @@
 {
   "name": "meshcore-card",
-  "version": "1.0.0",
+  "version": "0.3.2",
   "description": "Home Assistant Lovelace card for MeshCore mesh radio network",
   "license": "MIT",
   "scripts": {

@@ -1,6 +1,6 @@
 # MeshCore Card
 
-Custom [Home Assistant](https://www.home-assistant.io/) Lovelace cards that display hub, node, and contact statistics from the [MeshCore](https://meshcore.co.uk) mesh radio network integration.
+Custom [Home Assistant](https://www.home-assistant.io/) Lovelace cards that display hub, node, contact, and channel statistics from the [MeshCore](https://meshcore.co.uk) mesh radio network integration.
 
 ![MeshCore Card screenshot](screenshot.png)
 ![MeshCore Contact Card screenshot](contact-card-screenshot.png)
@@ -35,7 +35,7 @@ Custom [Home Assistant](https://www.home-assistant.io/) Lovelace cards that disp
 
 ## Cards
 
-This package provides two card types.
+This package provides three card types.
 
 ### `custom:meshcore-card` — Hub & Node Card
 
@@ -52,11 +52,12 @@ type: custom:meshcore-card
 - **MQTT broker status** — per-broker connection pills (green = connected, red = disconnected)
 - **Hub location** — coordinates chip with a direct link to the [MeshCore Analyzer map](https://analyzer.letsmesh.net)
 - **Remote nodes** — automatically discovered:
-  - Online/offline status, RSSI and SNR badges, routing path
+  - Online/offline status, RSSI and SNR badges, routing path, last seen time
   - Battery percentage bar with voltage
-  - **Repeater nodes**: TX/RX airtime bars, noise floor, uptime, TX/RX rate, sent/received/relayed/canceled/duplicate traffic counts
-  - **Sensor nodes**: temperature, humidity, illuminance, pressure
-  - Location map link for nodes with GPS coordinates
+  - Location map link (resolved from the node's contact advertisement)
+  - **Repeater nodes**: TX/RX airtime bars, noise floor, uptime, TX/RX rate, relayed/canceled/duplicate traffic counts, sent/received totals
+  - Optional sensor readings: temperature, humidity, illuminance, pressure (configured per node)
+- **Drag-to-reorder** — drag nodes in the visual editor to set display order
 - **Throttled rendering** — updates at most once every 10 seconds
 
 #### Configuration
@@ -75,8 +76,15 @@ nodes:
     enabled: true                 # show/hide this node (default: true)
     battery_entity: sensor.x      # override auto-detected battery % entity
     voltage_entity: sensor.x      # override auto-detected voltage entity
-    location_entity: sensor.x     # entity with latitude/longitude attributes
-                                  # (e.g. a GPS tracker — scoped to all meshcore entities)
+    location_entity: sensor.x     # override location source (entity with latitude/longitude
+                                  # attributes, scoped to all meshcore entities)
+    temperature_entity: sensor.x  # temperature sensor to display (optional)
+    humidity_entity: sensor.x     # humidity sensor to display (optional)
+    illuminance_entity: sensor.x  # illuminance sensor to display (optional)
+    pressure_entity: sensor.x     # pressure sensor to display (optional)
+nodes_order:                      # display order for nodes (set via drag-and-drop in editor)
+  - MyNode
+  - OtherNode
 grid_options:
   rows: 4                         # fix card height to N dashboard grid rows;
                                   # content that doesn't fit is hidden cleanly
@@ -106,7 +114,7 @@ type: custom:meshcore-contact-card
 #### Contact card features
 
 - **Contact list** — sorted by `last_advert` descending (most recently heard first)
-- **Per contact**: icon, advertised name, node type badge, time since last heard, online/offline dot
+- **Per contact**: icon or entity picture, advertised name, node type badge, time since last heard, online/offline dot
 - **Location** — coordinates link to [MeshCore Analyzer map](https://analyzer.letsmesh.net) when lat/lon are present; shows "Unknown Location" when coordinates are 0,0
 - **Age filter** — contacts older than `max_contact_age_days` are hidden
 - **Grid-aware clipping** — when placed in a fixed-height grid cell, partially visible rows are hidden cleanly
@@ -116,6 +124,30 @@ type: custom:meshcore-contact-card
 ```yaml
 type: custom:meshcore-contact-card
 max_contact_age_days: 7           # hide contacts not heard within this many days (default: 7)
+grid_options:
+  rows: 4                         # fix card height to N dashboard grid rows
+```
+
+---
+
+### `custom:meshcore-channel-card` — Channel Card
+
+Lists all active MeshCore message channels (`binary_sensor.meshcore_*_messages` entities) sorted by channel index.
+
+```yaml
+type: custom:meshcore-channel-card
+```
+
+#### Channel card features
+
+- **Channel list** — sorted by channel index
+- **Per channel**: green dot when active, hub name, channel name
+- **Grid-aware clipping** — when placed in a fixed-height grid cell, partially visible rows are hidden cleanly
+
+#### Channel card configuration
+
+```yaml
+type: custom:meshcore-channel-card
 grid_options:
   rows: 4                         # fix card height to N dashboard grid rows
 ```
