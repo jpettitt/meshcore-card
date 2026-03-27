@@ -53,19 +53,26 @@ interface ChannelEntry {
 function parseChannel(entityId: string, attrs: Record<string, unknown>): { hubName: string; channelName: string; channelIndex: number } {
   const channelIndex = typeof attrs["channel_index"] === "number" ? attrs["channel_index"] : 0;
 
+  // Hub prefix and index always come from the entity ID
+  const idm = entityId.match(/^binary_sensor\.meshcore_([^_]+(?:_[^_]+)*)_ch_(\d+)_messages$/);
+  const hubFromId = idm ? idm[1]! : entityId;
+  const chIdx     = idm ? parseInt(idm[2]!, 10) : channelIndex;
+
   const friendly = String(attrs["friendly_name"] ?? "");
-  // "MeshCore YubaWifi (55733c) Public Messages"
-  const m = friendly.match(/^MeshCore\s+(.+?)\s+\([0-9a-f]+\)\s+(.+?)\s+Messages/i);
-  if (m) {
-    return { hubName: m[1]!, channelName: m[2]!, channelIndex };
+
+  // Full format: "MeshCore YubaWifi (55733c) Public Messages"
+  const full = friendly.match(/^MeshCore\s+(.+?)\s+\([0-9a-f]+\)\s+(.+?)\s+Messages\b/i);
+  if (full) {
+    return { hubName: full[1]!, channelName: full[2]!, channelIndex: chIdx };
   }
 
-  // Fallback: parse from entity ID
-  // binary_sensor.meshcore_55733c_ch_2_messages → hubPrefix=55733c, channelIndex=2
-  const idm = entityId.match(/^binary_sensor\.meshcore_([^_]+(?:_[^_]+)*)_ch_(\d+)_messages$/);
-  const hubName    = idm ? idm[1]! : entityId;
-  const chIdx      = idm ? parseInt(idm[2]!, 10) : channelIndex;
-  return { hubName, channelName: `Ch ${chIdx}`, channelIndex: chIdx };
+  // Short format: "Public Messages" — strip trailing " Messages"
+  const short = friendly.match(/^(.+?)\s+Messages\b/i);
+  if (short) {
+    return { hubName: hubFromId, channelName: short[1]!, channelIndex: chIdx };
+  }
+
+  return { hubName: hubFromId, channelName: friendly || `Ch ${chIdx}`, channelIndex: chIdx };
 }
 
 export class MeshcoreChannelCard extends HTMLElement {

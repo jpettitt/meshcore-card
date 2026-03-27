@@ -133,6 +133,16 @@ export class MeshcoreCard extends HTMLElement {
     return this._find(`sensor.meshcore_${pubkey}_${metric}`);
   }
 
+  /** Find the contact binary_sensor for a node (matched by adv_name attribute). */
+  private _contactEntity(nodeName: string): string | null {
+    if (!this._hass) return null;
+    for (const [id, state] of Object.entries(this._hass.states)) {
+      if (!/^binary_sensor\.meshcore_.*_contact$/.test(id)) continue;
+      if (String(state.attributes["adv_name"] ?? "") === nodeName) return id;
+    }
+    return null;
+  }
+
   // ── Config helpers ─────────────────────────────────────────────────────────
 
   private _hubCfg(pubkey: string): HubConfig {
@@ -292,8 +302,9 @@ export class MeshcoreCard extends HTMLElement {
     const battPctId = nodeCfg.battery_entity ?? p("battery_percentage") ?? p("battery_level") ?? p("battery");
     const battVId   = nodeCfg.voltage_entity  ?? p("battery_voltage");
     const locEntityId = nodeCfg.location_entity ?? null;
-    const latId     = locEntityId ? null : p("latitude");
-    const lonId     = locEntityId ? null : p("longitude");
+    const contactId   = locEntityId ? null : this._contactEntity(name);
+    const latId       = locEntityId ? null : p("latitude");
+    const lonId       = locEntityId ? null : p("longitude");
 
     // Repeater / Room Server extras (type 2 & 3)
     const sentId      = p("nb_sent");
@@ -309,12 +320,6 @@ export class MeshcoreCard extends HTMLElement {
     const txRateId    = [p("tx_per_minute"), p("tx_rate"), p("messages_per_minute")].find((id) => this._exists(id)) ?? null;
     const rxRateId    = [p("rx_per_minute"), p("rx_rate")].find((id) => this._exists(id)) ?? null;
 
-    // Sensor extras (type 4)
-    const tempId  = p("temperature");
-    const humidId = p("humidity");
-    const illumId = p("illuminance");
-    const pressId = p("pressure");
-
     const status  = this._val(statusId);
     const rssi    = this._val(rssiId);
     const snr     = this._val(snrId);
@@ -323,9 +328,15 @@ export class MeshcoreCard extends HTMLElement {
     const lastAdv = this._val(advertId);
     const battPct = this._val(battPctId);
     const battV   = this._val(battVId);
-    const lat     = locEntityId ? this._attr(locEntityId, "latitude")  : this._val(latId);
-    const lon     = locEntityId ? this._attr(locEntityId, "longitude") : this._val(lonId);
-    const locId   = locEntityId ?? latId;
+    const rawLat  = locEntityId ? this._attr(locEntityId, "latitude")
+                  : contactId  ? this._attr(contactId, "adv_lat") ?? this._attr(contactId, "latitude")
+                  : this._val(latId);
+    const rawLon  = locEntityId ? this._attr(locEntityId, "longitude")
+                  : contactId  ? this._attr(contactId, "adv_lon") ?? this._attr(contactId, "longitude")
+                  : this._val(lonId);
+    const lat     = rawLat != null && parseFloat(String(rawLat)) !== 0 ? rawLat : null;
+    const lon     = rawLon != null && parseFloat(String(rawLon)) !== 0 ? rawLon : null;
+    const locId   = locEntityId ?? contactId ?? latId;
 
     const successes = this._val(successId);
     const online    = successes !== null ? Number(successes) > 0 : isOnlineState(status);
@@ -335,12 +346,21 @@ export class MeshcoreCard extends HTMLElement {
     const isRepeater = !!(airtimeId || rxAirtimeId || noiseId);
     const isSensor   = !isRepeater && !!(p("temperature") || p("humidity") || p("illuminance"));
 
+    // Sensor extras — temp/humid shown if explicitly configured OR auto-detected on sensor nodes
+    const tempId  = nodeCfg.temperature_entity ?? null;
+    const humidId = nodeCfg.humidity_entity    ?? null;
+    const illumId = nodeCfg.illuminance_entity ?? null;
+    const pressId = nodeCfg.pressure_entity    ?? null;
+
     const trafficCells: TrafficCell[] = [
-      { label: t("card.traffic_sent"),      id: sentId,    cls: "" },
-      { label: t("card.traffic_received"),  id: receivedId, cls: "" },
       { label: t("card.traffic_relayed"),   id: relayedId, cls: "blue" },
       { label: t("card.traffic_canceled"),  id: canceledId, cls: "red" },
       { label: t("card.traffic_duplicate"), id: dupId,     cls: "yellow" },
+    ].filter((c) => this._exists(c.id));
+
+    const sentReceivedCells: TrafficCell[] = [
+      { label: t("card.traffic_sent"),     id: sentId,    cls: "" },
+      { label: t("card.traffic_received"), id: receivedId, cls: "" },
     ].filter((c) => this._exists(c.id));
 
     const airtime   = this._val(airtimeId);
@@ -435,11 +455,22 @@ export class MeshcoreCard extends HTMLElement {
           ${lat !== null && lon !== null ? this._locLink(lat, lon, locId, t) : ""}
         `}
 
-        ${isSensor && telemetryCells.length ? `
+        ${telemetryCells.length ? `
           <div class="node-chip-row">
             ${telemetryCells.map((c) => {
               const v = this._val(c.id);
               return this._chip(c.id, c.label + " ", v !== null ? v + c.unit : "—");
+            }).join("")}
+          </div>` : ""}
+
+        ${sentReceivedCells.length ? `
+          <div class="node-traffic">
+            ${sentReceivedCells.map((c) => {
+              const v = this._val(c.id);
+              const blank = v === null || v === "unknown" || v === "unavailable";
+              const display = blank ? "—" : (isNaN(Number(v)) ? v : String(Math.round(Number(v))));
+              return `<div class="tc"><div class="tc-label">${c.label}</div>
+                <div class="tc-val ${blank ? "dim" : c.cls} clickable" data-entity="${c.id}">${display}</div></div>`;
             }).join("")}
           </div>` : ""}
 
@@ -459,9 +490,17 @@ export class MeshcoreCard extends HTMLElement {
     }
 
     const visibleHubs = allHubs.filter((h) => this._hubCfg(h.pubkey).enabled !== false);
-    const nodes = this._discoverNodes().filter(
-      (n) => this._nodeCfg(n.name).enabled !== false
-    );
+    const nodesOrder = this._config?.nodes_order ?? [];
+    const nodes = this._discoverNodes()
+      .filter((n) => this._nodeCfg(n.name).enabled !== false)
+      .sort((a, b) => {
+        const ia = nodesOrder.indexOf(a.name);
+        const ib = nodesOrder.indexOf(b.name);
+        if (ia === -1 && ib === -1) return 0;
+        if (ia === -1) return 1;
+        if (ib === -1) return -1;
+        return ia - ib;
+      });
 
     const hubsHtml = visibleHubs.length
       ? `<div class="section-label">${t("card.section_hubs")}</div>` +

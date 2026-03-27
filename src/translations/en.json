@@ -48,8 +48,13 @@
     "battery_entity": "Battery % entity (blank = auto-detect)",
     "voltage_entity": "Voltage entity (blank = auto-detect)",
     "location_entity": "Location entity with latitude/longitude attributes (optional)",
+    "temperature_entity": "Temperature entity (optional)",
+    "humidity_entity": "Humidity entity (optional)",
+    "illuminance_entity": "Illuminance entity (optional)",
+    "pressure_entity": "Pressure entity (optional)",
     "hub_section_title": "Hub: {name} ({key})",
     "max_contact_age": "Maximum contact age (days)",
-    "no_hubs_detected": "No MeshCore hubs detected yet. Add the card, then edit to configure."
+    "no_hubs_detected": "No MeshCore hubs detected yet. Add the card, then edit to configure.",
+    "node_order_label": "Node Display Order"
   }
 }

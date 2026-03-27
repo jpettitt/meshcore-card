@@ -21,6 +21,7 @@ const CONTACT_STYLES: string = `
     color: var(--secondary-text-color);
   }
   .contact-icon ha-icon { --mdc-icon-size: 22px; }
+  .contact-icon img { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
 
   .contact-info { flex: 1; min-width: 0; }
 
@@ -47,6 +48,7 @@ interface ContactEntry {
   lastAdvert: number;
   timeSince: string | null;
   icon: string;
+  picture: string | null;
   lat: number | null;
   lon: number | null;
   unknownLocation: boolean;
@@ -114,7 +116,11 @@ export class MeshcoreContactCard extends HTMLElement {
       .filter(([id]) => /^binary_sensor\.meshcore_.*_contact$/.test(id))
       .map(([entityId, state]): ContactEntry => {
         const a = state.attributes as Record<string, unknown>;
-        const lastAdvert = Number(a["last_advert"] ?? 0);
+        const now = Date.now() / 1000;
+        const rawAdvert = Number(a["last_advert"] ?? 0);
+        const lastAdvert = rawAdvert > 0 && rawAdvert <= now
+          ? rawAdvert
+          : state.last_updated ? new Date(state.last_updated).getTime() / 1000 : 0;
         const rawLat = a["adv_lat"] ?? a["latitude"];
         const rawLon = a["adv_lon"] ?? a["longitude"];
         const lat = rawLat != null && rawLat !== "" ? parseFloat(String(rawLat)) : null;
@@ -126,6 +132,7 @@ export class MeshcoreContactCard extends HTMLElement {
           lastAdvert,
           timeSince: formatLastSeen(lastAdvert || null, t),
           icon:      String(a["icon"] || "mdi:account"),
+          picture:   a["entity_picture"] ? String(a["entity_picture"]) : null,
           lat:             lat !== null && !isNaN(lat) && lat !== 0 ? lat : null,
           lon:             lon !== null && !isNaN(lon) && lon !== 0 ? lon : null,
           unknownLocation: rawLat != null && rawLon != null && (parseFloat(String(rawLat)) === 0 || parseFloat(String(rawLon)) === 0),
@@ -144,7 +151,9 @@ export class MeshcoreContactCard extends HTMLElement {
     return `
       <div class="contact-row" data-entity="${c.entityId}">
         <div class="contact-icon">
-          <ha-icon icon="${c.icon}"></ha-icon>
+          ${c.picture
+            ? `<img src="${c.picture}" alt="">`
+            : `<ha-icon icon="${c.icon}"></ha-icon>`}
         </div>
         <div class="contact-info">
           <div class="contact-header">

@@ -17,6 +17,7 @@ export interface HassDeviceRegistryEntry {
   name_by_user: string | null;
   manufacturer: string | null;
   model: string | null;
+  via_device_id?: string | null;
 }
 
 /** The `hass` object passed to Lovelace custom cards by the HA frontend. */
@@ -42,6 +43,10 @@ export interface NodeConfig {
   battery_entity?: string;
   voltage_entity?: string;
   location_entity?: string;
+  temperature_entity?: string;
+  humidity_entity?: string;
+  illuminance_entity?: string;
+  pressure_entity?: string;
 }
 
 export interface GridOptions {
@@ -55,6 +60,7 @@ export interface MeshcoreCardConfig {
   type?: string;
   hubs?: Record<string, HubConfig | boolean>;
   nodes?: Record<string, NodeConfig | boolean>;
+  nodes_order?: string[];
   grid_options?: GridOptions;
 }
 
@@ -80,6 +86,7 @@ export interface HubInfo {
 export interface NodeInfo {
   name: string;
   deviceId: string;
+  hubPubkey: string | null;
   ePrefix: string;
   eSuffix: string;
 }
