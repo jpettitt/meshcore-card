@@ -5,6 +5,8 @@ Custom [Home Assistant](https://www.home-assistant.io/) Lovelace cards that disp
 ![MeshCore Card screenshot](screenshot.png)
 ![MeshCore Contact Card screenshot](contact-card-screenshot.png)
 
+[![Add Repository](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=jpettitt&repository=meshcore-card&category=plugin)
+
 ---
 
 ## Requirements
