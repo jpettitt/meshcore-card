@@ -2,6 +2,13 @@
 
 Custom [Home Assistant](https://www.home-assistant.io/) Lovelace cards that display hub, node, contact, and channel statistics from the [MeshCore](https://meshcore.co.uk) mesh radio network integration.
 
+[![GitHub Release](https://img.shields.io/github/release/jpettitt/meshcore-card.svg?style=for-the-badge)](https://github.com/jpettitt/meshcore-card/releases)
+[![License](https://img.shields.io/github/license/jpettitt/meshcore-card.svg?style=for-the-badge)](LICENSE)
+[![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://hacs.xyz)
+[![Maintenance](https://img.shields.io/maintenance/yes/2026?style=for-the-badge)](https://github.com/jpettitt/meshcore-card)
+
+[![Add Repository](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=jpettitt&repository=meshcore-card&category=plugin)
+
 ![MeshCore Card screenshot](screenshot.png)
 ![MeshCore Contact Card screenshot](contact-card-screenshot.png)
 
