@@ -1,6 +1,34 @@
 import type { HomeAssistant, HubInfo, NodeInfo } from "./types.js";
 import { longestCommonPrefix, longestCommonSuffix } from "./helpers.js";
 
+// Longest suffix shared by at least half of the strings.
+//
+// Why: a node device's entities mostly end with `_<adv_name_slug>`
+// (e.g. `_yuba_crest_repeater`), but a few outliers — like
+// `_neighbor_<hex>` and `_neighbor_<hex>_seen` — don't, which makes the
+// strict longest-common-suffix collapse to "". A 50%-threshold suffix
+// stays robust against those outliers while still being conservative
+// enough to avoid false matches on small devices.
+function majoritySuffix(strs: string[]): string {
+  if (strs.length <= 1) return longestCommonSuffix(strs);
+  const half = Math.ceil(strs.length / 2);
+  let best = "";
+  for (const candidate of strs) {
+    // Walk down candidate's possible suffixes from longest. Only check
+    // suffixes longer than `best` to avoid wasted work.
+    for (let len = candidate.length; len > best.length; len--) {
+      const suffix = candidate.slice(-len);
+      let count = 0;
+      for (const s of strs) if (s.endsWith(suffix)) count++;
+      if (count >= half) {
+        best = suffix;
+        break;
+      }
+    }
+  }
+  return best;
+}
+
 export function discoverHubs(hass: HomeAssistant): HubInfo[] {
   const hubs: Record<string, HubInfo> = {};
   const re = /^sensor\.meshcore_([a-f0-9]+)_node_count(?:_(.+))?$/;
@@ -51,7 +79,7 @@ export function discoverNodes(hass: HomeAssistant): NodeInfo[] {
       .filter(([, info]) => info.device_id === deviceId)
       .map(([id]) => id);
     const ePrefix = longestCommonPrefix(deviceEntityIds);
-    const eSuffix = longestCommonSuffix(deviceEntityIds);
+    const eSuffix = majoritySuffix(deviceEntityIds);
     nodes.push({
       name: device.name_by_user || device.name || deviceId,
       deviceId,

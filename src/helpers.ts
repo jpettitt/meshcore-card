@@ -27,7 +27,9 @@ export function longestCommonSuffix(strs: string[]): string {
 }
 
 export function isOnlineState(v: unknown): boolean {
-  return ["online", "connected", "1", "true"].includes(
+  // "on" covers binary_sensor connectivity entities (e.g. *_online_*),
+  // which the meshcore-ha integration uses for repeater status.
+  return ["online", "connected", "on", "1", "true"].includes(
     String(v).toLowerCase()
   );
 }

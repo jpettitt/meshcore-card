@@ -107,10 +107,22 @@ export class MeshcoreCard extends HTMLElement {
     if (!deviceId || !this._hass?.entities) return null;
     const pLen = (ePrefix || "").length;
     const sLen = (eSuffix || "").length;
+    // First pass: strip the discovered prefix/suffix and match the metric
+    // exactly (or as the last underscored segment of the core). This is
+    // the precise path when discovery's eSuffix correctly identifies the
+    // node-name slug.
     for (const [entityId, info] of Object.entries(this._hass.entities)) {
       if (info.device_id !== deviceId) continue;
       const core = entityId.slice(pLen, sLen ? -sLen : undefined);
       if (core === metric || core.endsWith(`_${metric}`)) return entityId;
+    }
+    // Fallback for older entity-ID formats with no node-name suffix:
+    // accept entities whose ID ends exactly in `_<metric>`. We don't
+    // also `includes(_<metric>_)` because that over-matches — e.g.
+    // `_battery_percentage_*` would falsely satisfy metric "battery".
+    for (const [entityId, info] of Object.entries(this._hass.entities)) {
+      if (info.device_id !== deviceId) continue;
+      if (entityId.endsWith(`_${metric}`)) return entityId;
     }
     return null;
   }
@@ -293,7 +305,10 @@ export class MeshcoreCard extends HTMLElement {
     const nodeCfg = this._nodeCfg(name);
 
     // Common entities (all types)
-    const statusId  = p("status");
+    // Newer meshcore-ha versions emit `binary_sensor.*_online_*` (a
+    // connectivity binary_sensor with state "on"/"off"); older ones
+    // emit `*_status_*`. Try the new name first.
+    const statusId  = p("online") ?? p("status");
     const successId = p("request_successes");
     const rssiId    = p("last_rssi");
     const snrId     = p("last_snr");
@@ -340,12 +355,35 @@ export class MeshcoreCard extends HTMLElement {
     const locId   = locEntityId ?? contactId ?? latId;
 
     const successes = this._val(successId);
-    const online    = successes !== null ? Number(successes) > 0 : isOnlineState(status);
     const lastSeen  = formatLastSeen(lastAdv, t);
 
-    // Detect node role by entity presence
-    const isRepeater = !!(airtimeId || rxAirtimeId || noiseId);
+    // Repeaters are the only nodes that expose neighbor_*_seen entities.
+    // Detect by scanning the device's entities for that pattern.
+    const isRepeater = (() => {
+      if (!this._hass?.entities) return false;
+      for (const [entityId, info] of Object.entries(this._hass.entities)) {
+        if (info.device_id !== deviceId) continue;
+        if (/_neighbor_[0-9a-f]+_seen$/.test(entityId)) return true;
+      }
+      return false;
+    })();
     const isSensor   = !isRepeater && !!(p("temperature") || p("humidity") || p("illuminance"));
+
+    // If the device has an uptime sensor (repeaters do), trust that:
+    // it counts as "up" while we've heard a fresh state in the last 6 hours.
+    // Otherwise fall back to request_successes / status text.
+    const uptimeState = uptimeId ? this._hass?.states[uptimeId] : null;
+    let online: boolean;
+    if (uptimeState) {
+      if (["unavailable", "unknown"].includes(uptimeState.state)) {
+        online = false;
+      } else {
+        const ts = new Date(uptimeState.last_updated).getTime();
+        online = !isNaN(ts) && (Date.now() - ts) < 6 * 3600 * 1000;
+      }
+    } else {
+      online = successes !== null ? Number(successes) > 0 : isOnlineState(status);
+    }
 
     // Sensor extras — temp/humid shown if explicitly configured OR auto-detected on sensor nodes
     const tempId  = nodeCfg.temperature_entity ?? null;
