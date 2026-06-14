@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const SRC   = resolve(__dir, "..", "src/translations");
-const LANGS = ["fr", "nl", "de"];
+const LANGS = ["fr", "nl", "de","pl"];
 
 function collectLeaves(obj, prefix = "") {
   const out = new Set();

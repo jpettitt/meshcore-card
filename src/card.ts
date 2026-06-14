@@ -12,9 +12,7 @@ import {
   isOnlineState,
   formatLastSeen,
   batteryColor,
-  batteryClass,
   formatUptime,
-  rssiClass,
   escapeHtml,
 } from "./helpers.js";
 import { STYLES } from "./styles.js";
@@ -289,11 +287,11 @@ export class MeshcoreCard extends HTMLElement {
         id: neighborId,
         name: neighborName,
         contactEntityId: contactEntityId,
-        snr: data.snr || null,
-        snrId: data.snrId || null,
-        lastSeen: data.lastSeen || null,
-        rawSeen: data.rawSeen || null,
-        seenId: data.seenId || null
+        snr: data.snr ?? null,
+        snrId: data.snrId ?? null,
+        lastSeen: data.lastSeen ?? null,
+        rawSeen: data.rawSeen ?? null,
+        seenId: data.seenId ?? null,
       });
     }
     
@@ -485,9 +483,11 @@ export class MeshcoreCard extends HTMLElement {
       battVId = p("battery_voltage");
     }
     if (!battVId && this._hass) {
-      // Przeszukaj wszystkie encje przypisane do tego deviceId
       for (const [entityId, info] of Object.entries(this._hass.entities)) {
-        if (info.device_id === deviceId && /bat|voltage|_bat_/i.test(entityId)) {
+        if (info.device_id !== deviceId) continue;
+        // Match: _bat, _battery_voltage, _bat_ ale nie percentage/level
+        if (/_bat$|_battery_voltage$|_bat_/i.test(entityId) &&
+            !/percentage|level/i.test(entityId)) {
           battVId = entityId;
           break;
         }
@@ -533,7 +533,10 @@ export class MeshcoreCard extends HTMLElement {
     const successes = this._val(successId);
     const lastSeen  = formatLastSeen(lastAdv, t);
 
-    // Determine type
+    // Repeater signals: airtime / rx_airtime / noise_floor entities
+    // (always present on repeaters), or _neighbor_*_seen entities
+    // (defense-in-depth — kept as a fallback in case the airtime/noise
+    // metrics haven't been populated yet on a freshly-paired repeater).
     const isRepeater = !!(airtimeId || rxAirtimeId || noiseId) || (() => {
       if (!this._hass?.entities) return false;
       for (const [entityId, info] of Object.entries(this._hass.entities)) {
@@ -544,7 +547,9 @@ export class MeshcoreCard extends HTMLElement {
     })();
     const isSensor = !isRepeater && !!(p("temperature") || p("humidity") || p("illuminance"));
 
-    // Online status
+    // If the device has an uptime sensor (repeaters do), trust that:
+    // it counts as "up" while we've heard a fresh state in the last 6 hours.
+    // Otherwise fall back to request_successes / status text.
     const uptimeState = uptimeId ? this._hass?.states[uptimeId] : null;
     let online: boolean;
     if (uptimeState) {
@@ -590,7 +595,6 @@ export class MeshcoreCard extends HTMLElement {
     } else if (displayName.toLowerCase().startsWith("meshcore")) {
       displayName = displayName.substring(8);
     }
-    console.log(`[MeshCore] Node: ${name}, battPctId: ${battPctId}, battPct: ${battPct}, battVId: ${battVId}, battV: ${battV}`);
     return `
       <div class="node-block ${online ? "" : "node-offline"}">
         <div class="node-header">
