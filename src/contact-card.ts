@@ -4,41 +4,141 @@ import { STYLES } from "./styles.js";
 import { makeLocalize, type LocalizeFunc } from "./localize.js";
 
 const CONTACT_STYLES: string = `
-  .contact-list { display: flex; flex-direction: column; gap: 2px; }
+  .contact-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
 
   .contact-row {
-    display: flex; align-items: center; gap: 10px;
-    padding: 8px 10px; border-radius: var(--ha-card-border-radius, 12px);
-    border: 1px solid var(--divider-color);
-    background: var(--secondary-background-color);
-    cursor: pointer; transition: opacity 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 18px;
+    background: rgba(128, 128, 128, 0.04);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(128, 128, 128, 0.1);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    cursor: pointer;
   }
-  .contact-row:hover { opacity: 0.75; }
+  .contact-row:hover {
+    transform: translateY(-1px);
+    background: rgba(128, 128, 128, 0.07);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
 
   .contact-icon {
-    display: flex; align-items: center; justify-content: center;
-    width: 32px; height: 32px; flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
     color: var(--secondary-text-color);
+    background: rgba(128, 128, 128, 0.05);
+    border-radius: 50%;
   }
-  .contact-icon ha-icon { --mdc-icon-size: 22px; }
-  .contact-icon img { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
+  .contact-icon ha-icon {
+    --mdc-icon-size: 20px;
+  }
+  .contact-icon img {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+  }
 
-  .contact-info { flex: 1; min-width: 0; }
+  .contact-info {
+    flex: 1;
+    min-width: 0;
+  }
 
-  .contact-header { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-  .contact-name { font-weight: 600; text-transform: capitalize; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .contact-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .contact-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-transform: capitalize;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--primary-text-color);
+  }
 
   .contact-meta {
-    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-    margin-top: 2px;
-    font-size: var(--paper-font-caption_-_font-size, 12px);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+    font-size: 11px;
     color: var(--secondary-text-color);
+    opacity: 0.7;
   }
 
-  .meta-loc { color: var(--primary-color); text-decoration: none; font-weight: 500; }
-  .meta-loc:hover { opacity: 0.75; }
+  .meta-loc {
+    color: var(--mesh-blue);
+    text-decoration: none;
+    font-weight: 500;
+    transition: opacity 0.2s;
+  }
+  .meta-loc:hover {
+    opacity: 0.7;
+  }
 
-  .contact-right { display: flex; align-items: center; flex-shrink: 0; }
+  .contact-right {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  /* Status dot – taka sama jak dla węzłów */
+  .status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    transition: box-shadow 0.3s ease;
+  }
+  .dot-online {
+    background: var(--mesh-green);
+    box-shadow: 0 0 8px rgba(74, 222, 128, 0.6);
+    animation: contact-pulse-glow 2s ease-in-out infinite;
+  }
+  .dot-offline {
+    background: var(--secondary-text-color);
+    opacity: 0.4;
+  }
+
+  @keyframes contact-pulse-glow {
+    0%, 100% { box-shadow: 0 0 4px rgba(74, 222, 128, 0.4); }
+    50% { box-shadow: 0 0 12px rgba(74, 222, 128, 0.8); }
+  }
+
+  /* Typ badge – taki sam jak dla węzłów */
+  .type-badge {
+    font-size: 10px;
+    color: var(--mesh-orange);
+    background: transparent;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: 600;
+    border: 1px solid rgba(251, 146, 60, 0.3);
+    transition: all 0.2s ease;
+  }
+  .type-badge:hover {
+    transform: translateY(-1px);
+  }
+
+  .dim {
+    color: var(--secondary-text-color);
+    opacity: 0.5;
+  }
 `;
 
 interface ContactEntry {

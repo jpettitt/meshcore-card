@@ -12,9 +12,7 @@ import {
   isOnlineState,
   formatLastSeen,
   batteryColor,
-  batteryClass,
   formatUptime,
-  rssiClass,
   escapeHtml,
 } from "./helpers.js";
 import { STYLES } from "./styles.js";
@@ -196,9 +194,154 @@ export class MeshcoreCard extends HTMLElement {
     const lonF = parseFloat(String(lon)).toFixed(5);
     const url = `https://analyzer.letsmesh.net/map?lat=${latF}&long=${lonF}&zoom=10`;
     return `<div class="loc-row">
-      <span class="chip clickable" data-entity="${escapeHtml(entityId)}">📍 ${latF}, ${lonF}</span>
+      <span class="loc-coords clickable" data-entity="${escapeHtml(entityId)}">📍 ${latF}, ${lonF}</span>
       <a class="map-link" href="${url}" target="_blank" rel="noopener">${escapeHtml(t("card.map_link"))}</a>
     </div>`;
+  }
+
+  // ── Neighbors helpers ──────────────────────────────────────────────────────
+
+  private _getNeighbors(deviceId: string): any[] {
+    if (!this._hass || !deviceId) return [];
+    
+    const neighbors: any[] = [];
+    const neighborMap = new Map<string, any>();
+    
+    // Find all neighbor entities for this device
+    for (const [entityId, info] of Object.entries(this._hass.entities || {})) {
+      if (info.device_id !== deviceId) continue;
+      
+      // Match neighbor_XXXXXX_seen entities (raw ID value)
+      const seenMatch = entityId.match(/_neighbor_([0-9a-f]+)_seen$/);
+      if (seenMatch) {
+        const neighborId = seenMatch[1];
+        if (!neighborMap.has(neighborId)) {
+          neighborMap.set(neighborId, {});
+        }
+        const seenVal = this._val(entityId);
+        if (seenVal !== null && seenVal !== 'unknown' && seenVal !== 'unavailable') {
+          const existing = neighborMap.get(neighborId)!;
+          existing.rawSeen = seenVal;
+          existing.seenId = entityId;
+        }
+      }
+      
+      // Match neighbor_XXXXXX entities (SNR value)
+      const neighborMatch = entityId.match(/_neighbor_([0-9a-f]+)$/);
+      if (neighborMatch && !entityId.endsWith('_seen')) {
+        const neighborId = neighborMatch[1];
+        if (!neighborMap.has(neighborId)) {
+          neighborMap.set(neighborId, {});
+        }
+        const val = this._val(entityId);
+        const state = this._hass?.states[entityId];
+        
+        // Get timestamp of LAST CHANGE - when SNR actually changed
+        let lastSeenTimestamp = null;
+        if (state && state.last_changed) {
+          lastSeenTimestamp = new Date(state.last_changed).getTime() / 1000;
+        } else if (state && state.last_updated) {
+          lastSeenTimestamp = new Date(state.last_updated).getTime() / 1000;
+        }
+        
+        // Only if we don't already have lastSeen from SEEN entity (or it's older)
+        const existing = neighborMap.get(neighborId)!;
+        const existingLastSeen = existing.lastSeen;
+        if (lastSeenTimestamp && (!existingLastSeen || lastSeenTimestamp < existingLastSeen)) {
+          existing.lastSeen = lastSeenTimestamp;
+        }
+        
+        if (val !== null && val !== 'unknown' && val !== 'unavailable') {
+          const numVal = parseFloat(val);
+          if (!isNaN(numVal)) {
+            existing.snr = numVal;
+            existing.snrId = entityId;
+          }
+        }
+      }
+    }
+    
+    // Get neighbor names from contact entities
+    for (const [neighborId, data] of neighborMap) {
+      let neighborName = neighborId.substring(0, 8);
+      let contactEntityId = null;
+      
+      for (const [entityId, state] of Object.entries(this._hass.states)) {
+        if (!/^binary_sensor\.meshcore_.*_contact$/.test(entityId)) continue;
+        
+        const advId = state.attributes["adv_id"];
+        if (advId && String(advId) === neighborId) {
+          neighborName = state.attributes["adv_name"] || neighborName;
+          contactEntityId = entityId;
+          break;
+        }
+        
+        if (entityId.includes(neighborId)) {
+          neighborName = state.attributes["adv_name"] || neighborName;
+          contactEntityId = entityId;
+          break;
+        }
+      }
+      
+      neighbors.push({
+        id: neighborId,
+        name: neighborName,
+        contactEntityId: contactEntityId,
+        snr: data.snr ?? null,
+        snrId: data.snrId ?? null,
+        lastSeen: data.lastSeen ?? null,
+        rawSeen: data.rawSeen ?? null,
+        seenId: data.seenId ?? null,
+      });
+    }
+    
+    // Sort by SNR (best first)
+    neighbors.sort((a, b) => {
+      const aSnr = a.snr !== null ? Number(a.snr) : -100;
+      const bSnr = b.snr !== null ? Number(b.snr) : -100;
+      return bSnr - aSnr;
+    });
+    
+    return neighbors;
+  }
+
+  private _getSnrClass(snr: number | string | null): string {
+    const v = Number(snr);
+    if (isNaN(v)) return 'dim';
+    if (v >= 10) return 'green';
+    if (v >= 6) return 'yellow';
+    if (v >= 0) return 'orange';
+    return 'red';
+  }
+
+  private _snrDescription(snr: number | null, t: LocalizeFunc): string {
+    if (snr === null || isNaN(snr)) return "";
+    if (snr >= 10) return t("card.snr_excellent");
+    if (snr >= 6) return t("card.snr_good");
+    if (snr >= 0) return t("card.snr_fair");
+    return t("card.snr_poor");
+  }
+
+  private _formatNeighborLastSeen(timestamp: number | null): string {
+    if (!timestamp) return '?';
+    const now = Math.floor(Date.now() / 1000);
+    const diff = now - timestamp;
+    
+    if (diff < 0) return '?';
+    if (diff < 60) {
+      const seconds = Math.floor(diff);
+      return `${seconds}s`;
+    }
+    if (diff < 3600) {
+      const minutes = Math.floor(diff / 60);
+      return `${minutes}m`;
+    }
+    if (diff < 86400) {
+      const hours = Math.ceil(diff / 3600);
+      return `${hours}h`;
+    }
+    const days = Math.floor(diff / 86400);
+    return `${days}d`;
   }
 
   // ── Hub rendering ──────────────────────────────────────────────────────────
@@ -243,17 +386,30 @@ export class MeshcoreCard extends HTMLElement {
     const battCol = batteryColor(battPct);
     const showRf  = freq || bw || sf || txPow;
 
+    // Clean hub name (remove MeshCore if present)
+    let displayName = name.replace(/_/g, " ");
+    const meshcorePattern = /^MeshCore\s+/i;
+    if (meshcorePattern.test(displayName)) {
+      displayName = displayName.replace(meshcorePattern, "");
+    } else if (displayName.toLowerCase().startsWith("meshcore")) {
+      displayName = displayName.substring(8);
+    }
+
     return `
       <div class="node-block ${online ? "" : "node-offline"}">
         <div class="node-header">
           <div class="node-left">
             <span class="status-dot ${online ? "dot-online" : "dot-offline"}"></span>
-            <span class="node-name">${escapeHtml(t("card.hub_name", { name: name.replace(/_/g, " ") }))}</span>
-            <span class="node-key dim clickable" data-entity="${escapeHtml(statusId ?? countId)}">(${escapeHtml(pubkey)})</span>
+            <span class="status-text ${online ? "online" : "offline"}">${escapeHtml(online ? t("card.online") : t("card.offline"))}</span>
           </div>
           <div class="node-right">
             ${nodeCount !== null ? `<span class="count-badge clickable" data-entity="${escapeHtml(countId)}">${escapeHtml(t("card.nodes_count", { n: nodeCount }))}</span>` : ""}
           </div>
+        </div>
+
+        <div class="node-title-row">
+          <span class="hub-name">${escapeHtml(t("card.hub_name", { name: displayName }))}</span>
+          <span class="node-key dim clickable" data-entity="${escapeHtml(statusId ?? countId)}">(${escapeHtml(pubkey)})</span>
         </div>
 
         ${hwModel || firmware ? `<div class="hw-info">${[hwModel, firmware].filter(Boolean).map((s) => escapeHtml(s)).join(" • ")}</div>` : ""}
@@ -261,18 +417,15 @@ export class MeshcoreCard extends HTMLElement {
         ${battPct !== null && Number(battPct) !== 0 ? `
           <div class="bar-row">
             <span class="bar-label">${escapeHtml(t("card.battery_label"))}</span>
-            <span class="bar-val clickable" data-entity="${escapeHtml(battPctId)}" style="color:${battCol}">${escapeHtml(battPct)}%</span>
+            <span class="bar-label-right">
+              ${battV !== null && parseFloat(battV) >= 0.001 ? `<span class="clickable" data-entity="${escapeHtml(battVId)}">⚡ ${parseFloat(battV).toFixed(3)}V</span>` : ""}
+              <span class="bar-val clickable" data-entity="${escapeHtml(battPctId)}" style="color:${battCol}">${escapeHtml(battPct)}%</span>
+            </span>
           </div>
           ${this._progressBar(battPct, battCol)}` : ""}
 
-        <div class="chip-row">
-          ${battV !== null && parseFloat(battV) >= 0.001 ? this._chip(battVId, "⚡", parseFloat(battV).toFixed(3) + "V") : ""}
-          ${this._exists(ch1VId) ? this._chip(ch1VId, t("card.chip_ch1"), (this._val(ch1VId) ?? "—") + "V") : ""}
-          ${this._exists(rateLimId) ? this._chip(rateLimId, t("card.chip_rate"), (this._val(rateLimId) ?? "—") + " tok") : ""}
-        </div>
-        ${lat !== null && lon !== null ? this._locLink(lat, lon, latId, t) : ""}
-
         ${showRf ? `
+          <div class="section-header">${escapeHtml(t("card.technical_section"))}</div>
           <div class="rf-row">
             ${freq ? `<span class="rf-chip clickable" data-entity="${escapeHtml(freqId)}">${parseFloat(freq).toFixed(3)} MHz</span>` : ""}
             ${bw   ? `<span class="rf-chip clickable" data-entity="${escapeHtml(bwId)}">${escapeHtml(bw)} kHz</span>` : ""}
@@ -280,9 +433,13 @@ export class MeshcoreCard extends HTMLElement {
             ${txPow ? `<span class="rf-chip clickable" data-entity="${escapeHtml(txPowId)}">${escapeHtml(txPow)} dBm</span>` : ""}
           </div>` : ""}
 
+        ${lat !== null && lon !== null ? `
+          <div class="section-header">${escapeHtml(t("card.location_section"))}</div>
+          ${this._locLink(lat, lon, latId, t)}` : ""}
+
         ${mqttIds.length ? `
+          <div class="section-header">${escapeHtml(t("card.mqtt_section"))}</div>
           <div class="mqtt-row">
-            <span class="mqtt-label">${escapeHtml(t("card.mqtt_label"))}</span>
             ${mqttIds.map((id) => {
               const v   = this._val(id);
               const lbl = (this._attr(id, "server") as string | null) ||
@@ -292,6 +449,13 @@ export class MeshcoreCard extends HTMLElement {
                   .trim();
               return `<span class="mqtt-pill ${v ? "ok" : "err"} clickable" data-entity="${escapeHtml(id)}">${escapeHtml(lbl)}</span>`;
             }).join("")}
+          </div>` : ""}
+
+        ${(this._exists(rateLimId) || this._exists(ch1VId)) ? `
+          <div class="section-header">${escapeHtml(t("card.other_section"))}</div>
+          <div class="chip-row">
+            ${this._exists(ch1VId) ? this._chip(ch1VId, t("card.chip_ch1"), (this._val(ch1VId) ?? "—") + "V") : ""}
+            ${this._exists(rateLimId) ? this._chip(rateLimId, t("card.chip_rate"), (this._val(rateLimId) ?? "—") + " tok") : ""}
           </div>` : ""}
       </div>
     `;
@@ -304,10 +468,7 @@ export class MeshcoreCard extends HTMLElement {
     const p = (m: string) => this._findEntityByDevice(deviceId, m, ePrefix, eSuffix);
     const nodeCfg = this._nodeCfg(name);
 
-    // Common entities (all types)
-    // Newer meshcore-ha versions emit `binary_sensor.*_online_*` (a
-    // connectivity binary_sensor with state "on"/"off"); older ones
-    // emit `*_status_*`. Try the new name first.
+    // Common entities
     const statusId  = p("online") ?? p("status");
     const successId = p("request_successes");
     const rssiId    = p("last_rssi");
@@ -316,13 +477,28 @@ export class MeshcoreCard extends HTMLElement {
     const routeId   = p("routing_path");
     const advertId  = p("last_advert");
     const battPctId = nodeCfg.battery_entity ?? p("battery_percentage") ?? p("battery_level") ?? p("battery");
-    const battVId   = nodeCfg.voltage_entity  ?? p("battery_voltage");
+    // const battVId   = nodeCfg.voltage_entity  ?? p("battery_voltage");
+    let battVId = nodeCfg.voltage_entity ?? null;
+    if (!battVId) {
+      battVId = p("battery_voltage");
+    }
+    if (!battVId && this._hass) {
+      for (const [entityId, info] of Object.entries(this._hass.entities)) {
+        if (info.device_id !== deviceId) continue;
+        // Match: _bat, _battery_voltage, _bat_ ale nie percentage/level
+        if (/_bat$|_battery_voltage$|_bat_/i.test(entityId) &&
+            !/percentage|level/i.test(entityId)) {
+          battVId = entityId;
+          break;
+        }
+      }
+    }
     const locEntityId = nodeCfg.location_entity ?? null;
     const contactId   = locEntityId ? null : this._contactEntity(name);
     const latId       = locEntityId ? null : p("latitude");
     const lonId       = locEntityId ? null : p("longitude");
 
-    // Repeater / Room Server extras (type 2 & 3)
+    // Repeater / extras
     const sentId      = p("nb_sent");
     const receivedId  = p("nb_recv");
     const relayedId   = p("relayed");
@@ -369,7 +545,7 @@ export class MeshcoreCard extends HTMLElement {
       }
       return false;
     })();
-    const isSensor   = !isRepeater && !!(p("temperature") || p("humidity") || p("illuminance"));
+    const isSensor = !isRepeater && !!(p("temperature") || p("humidity") || p("illuminance"));
 
     // If the device has an uptime sensor (repeaters do), trust that:
     // it counts as "up" while we've heard a fresh state in the last 6 hours.
@@ -387,59 +563,70 @@ export class MeshcoreCard extends HTMLElement {
       online = successes !== null ? Number(successes) > 0 : isOnlineState(status);
     }
 
-    // Sensor extras — temp/humid shown if explicitly configured OR auto-detected on sensor nodes
-    const tempId  = nodeCfg.temperature_entity ?? null;
-    const humidId = nodeCfg.humidity_entity    ?? null;
-    const illumId = nodeCfg.illuminance_entity ?? null;
-    const pressId = nodeCfg.pressure_entity    ?? null;
-
-    const trafficCells: TrafficCell[] = [
-      { label: t("card.traffic_relayed"),   id: relayedId, cls: "blue" },
-      { label: t("card.traffic_canceled"),  id: canceledId, cls: "red" },
-      { label: t("card.traffic_duplicate"), id: dupId,     cls: "yellow" },
-    ].filter((c) => this._exists(c.id));
-
-    const sentReceivedCells: TrafficCell[] = [
-      { label: t("card.traffic_sent"),     id: sentId,    cls: "" },
-      { label: t("card.traffic_received"), id: receivedId, cls: "" },
-    ].filter((c) => this._exists(c.id));
-
-    const airtime   = this._val(airtimeId);
-    const rxAirtime = this._val(rxAirtimeId);
-    const noise     = this._val(noiseId);
-    const queue     = this._val(queueId);
     const uptimeRaw = this._val(uptimeId);
-    const uptime    = formatUptime(uptimeRaw);
-    const txRate    = txRateId ? this._val(txRateId) : null;
-    const rxRate    = rxRateId ? this._val(rxRateId) : null;
+    const uptime = formatUptime(uptimeRaw);
+    const txRate = txRateId ? this._val(txRateId) : null;
+    const rxRate = rxRateId ? this._val(rxRateId) : null;
 
-    const telemetryCells: TelemetryCell[] = [
-      { label: t("card.telemetry_temp"),     id: tempId,  unit: "°C" },
-      { label: t("card.telemetry_humidity"), id: humidId, unit: "%" },
-      { label: t("card.telemetry_lux"),      id: illumId, unit: " lx" },
-      { label: t("card.telemetry_pressure"), id: pressId, unit: " hPa" },
-    ].filter((c) => this._exists(c.id));
+    // Header badges (SF, freq, power, uptime)
+    const sfEntity = p("spreading_factor");
+    const freqEntity = p("frequency");
+    const txPowerEntity = p("tx_power");
+    const sfVal = sfEntity ? this._val(sfEntity) : null;
+    const freqVal = freqEntity ? this._val(freqEntity) : null;
+    const txPowerVal = txPowerEntity ? this._val(txPowerEntity) : null;
 
+    // Node identifier
+    let nodeKey = "";
+    if (contactId) {
+      const advId = this._attr(contactId, "adv_id");
+      if (advId) nodeKey = String(advId);
+    }
+    if (!nodeKey && statusId) {
+      const advId = this._attr(statusId, "adv_id");
+      if (advId) nodeKey = String(advId);
+    }
+    if (!nodeKey && deviceId) nodeKey = deviceId.slice(-6);
+
+    // Clean display name: remove leading "MeshCore " or "MeshCore"
+    let displayName = name.replace(/_/g, " ");
+    if (displayName.toLowerCase().startsWith("meshcore ")) {
+      displayName = displayName.substring(9);
+    } else if (displayName.toLowerCase().startsWith("meshcore")) {
+      displayName = displayName.substring(8);
+    }
     return `
       <div class="node-block ${online ? "" : "node-offline"}">
-
         <div class="node-header">
           <div class="node-left">
             <span class="status-dot ${online ? "dot-online" : "dot-offline"}"></span>
-            <span class="node-name">${escapeHtml(name.replace(/_/g, " "))}</span>
-            ${isRepeater ? `<span class="type-badge">${escapeHtml(t("card.type_repeater"))}</span>` : isSensor ? `<span class="type-badge">${escapeHtml(t("card.type_sensor"))}</span>` : ""}
+            <span class="status-text ${online ? "online" : "offline"}">${escapeHtml(online ? t("card.online") : t("card.offline"))}</span>
+            ${uptime ? `<span class="node-header-badge">${escapeHtml(uptime)}</span>` : ""}
           </div>
           <div class="node-right">
-            ${rssi !== null ? `<span class="badge ${rssiClass(rssi)} clickable" data-entity="${escapeHtml(rssiId)}">${escapeHtml(t("card.rssi_badge", { value: rssi }))}</span>` : ""}
-            ${snr  !== null ? `<span class="badge clickable" data-entity="${escapeHtml(snrId)}">${escapeHtml(t("card.snr_badge", { value: snr }))}</span>` : ""}
-            ${pathLen !== null ? `<span class="badge clickable" data-entity="${escapeHtml(pathId)}">${escapeHtml(pathLen)}↑</span>` : ""}
-            ${lastSeen ? `<span class="badge dim">${escapeHtml(lastSeen)}</span>` : ""}
+            ${sfVal ? `<span class="node-header-badge">SF${escapeHtml(sfVal)}</span>` : ""}
+            ${freqVal ? `<span class="node-header-badge">${parseFloat(freqVal).toFixed(3)} MHz</span>` : ""}
+            ${txPowerVal ? `<span class="node-header-badge">${escapeHtml(txPowerVal)} dBm</span>` : ""}
+            ${isRepeater ? `<span class="type-badge">${escapeHtml(t("card.type_repeater"))}</span>` : isSensor ? `<span class="type-badge">${escapeHtml(t("card.type_sensor"))}</span>` : ""}
           </div>
         </div>
 
-        ${route && !["unknown", "unavailable"].includes(route) ? `
-          <div class="node-route">↝ ${escapeHtml(route)}</div>` : ""}
+        <div class="node-title-row">
+          <span class="node-name">${escapeHtml(displayName)}</span>
+          ${nodeKey ? `<span class="node-key dim clickable" data-entity="${escapeHtml(contactId ?? statusId ?? "")}">(${escapeHtml(nodeKey)})</span>` : ""}
+        </div>
 
+        ${route && !["unknown", "unavailable"].includes(route) ? `<div class="node-route">↝ ${escapeHtml(route)}</div>` : ""}
+
+        <!-- RSSI / SNR row -->
+        ${(rssi !== null || snr !== null) ? `
+          <div class="signal-row">
+            ${rssi !== null ? `<div class="signal-item"><span class="signal-label">${escapeHtml(t("card.rssi_label"))}</span><span class="signal-value clickable" data-entity="${escapeHtml(rssiId)}">${escapeHtml(rssi)} dBm</span></div>` : ""}
+            ${snr !== null ? `<div class="signal-item"><span class="signal-label">${escapeHtml(t("card.snr_label"))}</span><span class="signal-value clickable" data-entity="${escapeHtml(snrId)}">${escapeHtml(snr)} dB</span></div>` : ""}
+          </div>` : ""}
+
+        <!-- Battery -->
+        
         ${battPct !== null && Number(battPct) !== 0 ? `
           <div class="bar-row">
             <span class="bar-label">${escapeHtml(t("card.battery_label"))}</span>
@@ -455,67 +642,128 @@ export class MeshcoreCard extends HTMLElement {
             ${this._chip(battVId, "⚡ ", parseFloat(String(battV)).toFixed(3) + "V")}
           </div>` : ""}
 
-        ${isRepeater ? `
-
-          ${airtime !== null ? `
-            <div class="bar-row">
-              <span class="bar-label">${escapeHtml(t("card.tx_airtime_label"))}</span>
-              <span class="bar-val clickable" data-entity="${escapeHtml(airtimeId)}">${parseFloat(airtime).toFixed(1)}%</span>
-            </div>
-            ${this._progressBar(airtime, "var(--primary-color)")}` : ""}
-
-          ${rxAirtime !== null ? `
-            <div class="bar-row">
-              <span class="bar-label">${escapeHtml(t("card.rx_airtime_label"))}</span>
-              <span class="bar-val clickable" data-entity="${escapeHtml(rxAirtimeId)}">${parseFloat(rxAirtime).toFixed(1)}%</span>
-            </div>
-            ${this._progressBar(rxAirtime, "var(--accent-color)")}` : ""}
-
-          ${noise !== null || uptime !== null || txRate !== null || rxRate !== null || queue !== null ? `
-            <div class="node-chip-row">
-              ${noise   !== null ? this._chip(noiseId,  t("card.chip_noise_floor"), noise + " dBm") : ""}
-              ${uptime  !== null ? this._chip(uptimeId, t("card.chip_uptime"), uptime) : ""}
-              ${txRate  !== null ? this._chip(txRateId, t("card.chip_tx_rate"), txRate) : ""}
-              ${rxRate  !== null ? this._chip(rxRateId, t("card.chip_rx_rate"), rxRate) : ""}
-              ${queue   !== null ? this._chip(queueId,  t("card.chip_queue"), queue) : ""}
-            </div>` : ""}
-
-          ${trafficCells.length ? `
-            <div class="node-traffic">
-              ${trafficCells.map((c) => {
-                const v = this._val(c.id);
-                const blank = v === null || v === "unknown" || v === "unavailable";
-                const display = blank ? "—" : (isNaN(Number(v)) ? v : String(Math.round(Number(v))));
-                return `<div class="tc"><div class="tc-label">${escapeHtml(c.label)}</div>
-                  <div class="tc-val ${blank ? "dim" : c.cls} clickable" data-entity="${escapeHtml(c.id)}">${escapeHtml(display)}</div></div>`;
-              }).join("")}
-            </div>` : ""}
-
-          ${lat !== null && lon !== null ? this._locLink(lat, lon, locId, t) : ""}
-        ` : `
-          ${lat !== null && lon !== null ? this._locLink(lat, lon, locId, t) : ""}
-        `}
-
-        ${telemetryCells.length ? `
-          <div class="node-chip-row">
-            ${telemetryCells.map((c) => {
-              const v = this._val(c.id);
-              return this._chip(c.id, c.label + " ", v !== null ? v + c.unit : "—");
-            }).join("")}
+        <!-- Traffic section (sent/received) -->
+        ${(this._exists(sentId) || this._exists(receivedId)) ? `
+          <div class="section-header">${escapeHtml(t("card.traffic_section"))}</div>
+          <div class="traffic-grid">
+            ${this._exists(sentId) ? `
+              <div class="traffic-item">
+                <span class="traffic-label">${escapeHtml(t("card.traffic_sent"))}</span>
+                <span class="traffic-value clickable" data-entity="${escapeHtml(sentId)}">${escapeHtml(this._val(sentId) ?? "—")}</span>
+              </div>` : ""}
+            ${this._exists(receivedId) ? `
+              <div class="traffic-item">
+                <span class="traffic-label">${escapeHtml(t("card.traffic_received"))}</span>
+                <span class="traffic-value clickable" data-entity="${escapeHtml(receivedId)}">${escapeHtml(this._val(receivedId) ?? "—")}</span>
+              </div>` : ""}
           </div>` : ""}
 
-        ${sentReceivedCells.length ? `
-          <div class="node-traffic">
-            ${sentReceivedCells.map((c) => {
-              const v = this._val(c.id);
-              const blank = v === null || v === "unknown" || v === "unavailable";
-              const display = blank ? "—" : (isNaN(Number(v)) ? v : String(Math.round(Number(v))));
-              return `<div class="tc"><div class="tc-label">${escapeHtml(c.label)}</div>
-                <div class="tc-val ${blank ? "dim" : c.cls} clickable" data-entity="${escapeHtml(c.id)}">${escapeHtml(display)}</div></div>`;
-            }).join("")}
+        <!-- Other traffic stats (relayed, canceled, duplicate) -->
+        ${(this._exists(relayedId) || this._exists(canceledId) || this._exists(dupId)) ? `
+          <div class="advanced-chips">
+            ${this._exists(relayedId) ? `<span class="advanced-chip clickable" data-entity="${escapeHtml(relayedId)}">↺ ${escapeHtml(t("card.traffic_relayed"))}: ${escapeHtml(this._val(relayedId) ?? "—")}</span>` : ""}
+            ${this._exists(canceledId) ? `<span class="advanced-chip clickable" data-entity="${escapeHtml(canceledId)}">✗ ${escapeHtml(t("card.traffic_canceled"))}: ${escapeHtml(this._val(canceledId) ?? "—")}</span>` : ""}
+            ${this._exists(dupId) ? `<span class="advanced-chip clickable" data-entity="${escapeHtml(dupId)}">↻ ${escapeHtml(t("card.traffic_duplicate"))}: ${escapeHtml(this._val(dupId) ?? "—")}</span>` : ""}
           </div>` : ""}
 
+        <!-- Advanced repeater stats (airtime, noise, queue, rates) -->
+        ${(isRepeater && (this._exists(airtimeId) || this._exists(rxAirtimeId) || this._exists(noiseId) || this._exists(queueId) || txRate || rxRate)) ? `
+          <div class="advanced-chips">
+            ${this._exists(airtimeId) ? `<span class="advanced-chip clickable" data-entity="${escapeHtml(airtimeId)}">📡 TX air: ${escapeHtml(this._val(airtimeId))}%</span>` : ""}
+            ${this._exists(rxAirtimeId) ? `<span class="advanced-chip clickable" data-entity="${escapeHtml(rxAirtimeId)}">📡 RX air: ${escapeHtml(this._val(rxAirtimeId))}%</span>` : ""}
+            ${this._exists(noiseId) ? `<span class="advanced-chip clickable" data-entity="${escapeHtml(noiseId)}">🔊 Noise: ${escapeHtml(this._val(noiseId))} dBm</span>` : ""}
+            ${this._exists(queueId) ? `<span class="advanced-chip clickable" data-entity="${escapeHtml(queueId)}">📥 Queue: ${escapeHtml(this._val(queueId))}</span>` : ""}
+            ${txRate ? `<span class="advanced-chip clickable" data-entity="${escapeHtml(txRateId)}">📤 TX/min: ${escapeHtml(txRate)}</span>` : ""}
+            ${rxRate ? `<span class="advanced-chip clickable" data-entity="${escapeHtml(rxRateId)}">📥 RX/min: ${escapeHtml(rxRate)}</span>` : ""}
+          </div>` : ""}
+
+        <!-- Location -->
+        ${lat !== null && lon !== null ? `
+          <div class="section-header">${escapeHtml(t("card.location_section"))}</div>
+          ${this._locLink(lat, lon, locId, t)}` : ""}
+
+        <!-- Telemetry (sensors) -->
+        ${(() => {
+          const tempId  = nodeCfg.temperature_entity ?? null;
+          const humidId = nodeCfg.humidity_entity    ?? null;
+          const illumId = nodeCfg.illuminance_entity ?? null;
+          const pressId = nodeCfg.pressure_entity    ?? null;
+          const teleCells = [
+            { label: t("card.telemetry_temp"),     id: tempId,  unit: "°C" },
+            { label: t("card.telemetry_humidity"), id: humidId, unit: "%" },
+            { label: t("card.telemetry_lux"),      id: illumId, unit: " lx" },
+            { label: t("card.telemetry_pressure"), id: pressId, unit: " hPa" },
+          ].filter(c => this._exists(c.id));
+          if (teleCells.length === 0) return "";
+          return `
+            <div class="section-header">${escapeHtml(t("card.telemetry_section"))}</div>
+            <div class="chip-row">
+              ${teleCells.map(c => this._chip(c.id, c.label + " ", (this._val(c.id) ?? "—") + c.unit)).join("")}
+            </div>`;
+        })()}
+
+        <!-- Neighbors -->
+        ${this._renderNeighbors(node, t)}
       </div>`;
+  }
+
+  private _renderNeighbors(node: NodeInfo, t: LocalizeFunc): string {
+    const neighbors = this._getNeighbors(node.deviceId);
+    const neighborsWithSnr = neighbors.filter(n => n.snr !== null && !isNaN(parseFloat(n.snr)));
+    
+    if (neighborsWithSnr.length === 0) {
+      return `
+        <div class="neighbors-section">
+          <div class="neighbors-header">
+            <span>${escapeHtml(t("card.neighbors_label") || "Neighbors")}</span>
+            <span class="count-badge">${neighborsWithSnr.length}</span>
+          </div>
+          <div style="font-size: 11px; color: var(--secondary-text-color); text-align: center; padding: 8px;">
+            ${escapeHtml(t("card.no_neighbors_info") || "No information about neighbors")}
+          </div>
+        </div>
+      `;
+    }
+    
+    const neighborRows = neighborsWithSnr.map(n => {
+      const snr = parseFloat(n.snr).toFixed(1);
+      const snrClass = this._getSnrClass(snr);
+      const snrDesc = this._snrDescription(parseFloat(n.snr), t);
+      const timeString = this._formatNeighborLastSeen(n.lastSeen);
+      const rawSeen = n.rawSeen || null;
+      const lastSeenLabel = t("card.neighbor_last_seen") || "Last seen";
+      const contactsLabel = t("card.neighbor_contacts") || "Connections (48h)";
+      
+      return `
+        <div class="neighbor-row">
+          <div class="neighbor-main">
+            <span class="neighbor-name ${n.contactEntityId ? 'clickable' : ''}" 
+              ${n.contactEntityId ? `data-entity="${escapeHtml(n.contactEntityId)}"` : 
+                (n.snrId ? `data-entity="${escapeHtml(n.snrId)}"` : '')}>
+              ${escapeHtml(n.name)}
+            </span>
+            <span class="neighbor-snr ${snrClass} clickable" 
+                data-entity="${escapeHtml(n.snrId || '')}">📡 ${escapeHtml(snr)} dB</span>
+          </div>
+          <div class="neighbor-stats">
+            <span class="neighbor-stat">🕒 ${escapeHtml(lastSeenLabel)}: ${escapeHtml(timeString)}</span>
+            ${rawSeen ? `<span class="neighbor-stat">🔗 ${escapeHtml(contactsLabel)}: ${escapeHtml(rawSeen)}x</span>` : ""}
+          </div>
+        </div>
+      `;
+    }).join('');
+    
+    return `
+      <div class="neighbors-section">
+        <div class="neighbors-header">
+          <span>${escapeHtml(t("card.neighbors_label") || "Neighbors")}</span>
+          <span class="count-badge" style="font-size:10px">${neighborsWithSnr.length}</span>
+        </div>
+        <div class="neighbors-list">
+          ${neighborRows}
+        </div>
+      </div>
+    `;
   }
 
   // ── Main render ────────────────────────────────────────────────────────────
