@@ -4,33 +4,67 @@ import { STYLES } from "./styles.js";
 import { makeLocalize, type LocalizeFunc } from "./localize.js";
 
 const CHANNEL_STYLES: string = `
-  .channel-list { display: flex; flex-direction: column; gap: 2px; }
+  .channel-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
 
   .channel-row {
-    display: flex; align-items: center; gap: 10px;
-    padding: 8px 12px; border-radius: var(--ha-card-border-radius, 12px);
-    border: 1px solid var(--divider-color);
-    background: var(--secondary-background-color);
-    cursor: pointer; transition: opacity 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 18px;
+    background: rgba(128, 128, 128, 0.04);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(128, 128, 128, 0.1);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    cursor: pointer;
   }
-  .channel-row:hover { opacity: 0.75; }
+  .channel-row:hover {
+    transform: translateY(-1px);
+    background: rgba(128, 128, 128, 0.07);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
 
   .channel-dot {
-    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
   }
-  .channel-dot.active  { background: var(--success-color, #4caf50); }
-  .channel-dot.inactive { background: var(--disabled-text-color, #9e9e9e); }
+  .channel-dot.active {
+    background: var(--mesh-green);
+    box-shadow: 0 0 8px rgba(74, 222, 128, 0.6);
+    animation: channel-pulse-glow 2s ease-in-out infinite;
+  }
+  .channel-dot.inactive {
+    background: var(--secondary-text-color);
+    opacity: 0.4;
+  }
+
+  @keyframes channel-pulse-glow {
+    0%, 100% { box-shadow: 0 0 4px rgba(74, 222, 128, 0.4); }
+    50% { box-shadow: 0 0 12px rgba(74, 222, 128, 0.8); }
+  }
 
   .channel-hub {
     font-weight: 500;
     color: var(--secondary-text-color);
     white-space: nowrap;
     flex-shrink: 0;
+    font-size: 12px;
+    letter-spacing: -0.01em;
   }
 
   .channel-name {
     font-weight: 600;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font-size: 0.95rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--primary-text-color);
   }
 `;
 
