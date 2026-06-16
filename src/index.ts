@@ -2,6 +2,7 @@ import { MeshcoreCard } from "./card.js";
 import { MeshcoreCardEditor } from "./editor.js";
 import { MeshcoreContactCard, MeshcoreContactCardEditor } from "./contact-card.js";
 import { MeshcoreChannelCard, MeshcoreChannelCardEditor } from "./channel-card.js";
+import { MeshcoreMessageCard, MeshcoreMessageCardEditor } from "./message-card.js";
 
 // ── Registration ──────────────────────────────────────────────────────────────
 
@@ -49,6 +50,22 @@ if (!window.customCards.find((c) => c.type === "meshcore-channel-card")) {
     type: "meshcore-channel-card",
     name: "MeshCore Channel Card",
     description: "Shows active MeshCore channels by hub",
+    preview: true,
+    documentationURL: "https://github.com/jpettitt/meshcore-card",
+  });
+}
+
+if (!customElements.get("meshcore-message-card")) {
+  customElements.define("meshcore-message-card", MeshcoreMessageCard);
+}
+if (!customElements.get("meshcore-message-card-editor")) {
+  customElements.define("meshcore-message-card-editor", MeshcoreMessageCardEditor);
+}
+if (!window.customCards.find((c) => c.type === "meshcore-message-card")) {
+  window.customCards.push({
+    type: "meshcore-message-card",
+    name: "MeshCore Message Card",
+    description: "Send and receive MeshCore messages (channel/direct)",
     preview: true,
     documentationURL: "https://github.com/jpettitt/meshcore-card",
   });

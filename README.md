@@ -13,7 +13,7 @@ Custom [Home Assistant](https://www.home-assistant.io/) Lovelace cards that disp
 ![MeshCore Node Card screenshot](screenshot2.png)
 ![MeshCore Contact Card screenshot](contact-card-screenshot.png)
 ![MeshCore Chanel Card screenshot](chanel-card-screenshot.png)
-
+![MeshCore Message Card screenshot](message-card-screenshot.png)
 ---
 
 ## Requirements

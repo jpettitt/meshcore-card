@@ -74,5 +74,33 @@
     "max_contact_age": "Maksymalny wiek kontaktu (dni)",
     "no_hubs_detected": "Nie wykryto jeszcze żadnych hubów MeshCore. Dodaj kartę, a następnie edytuj, aby skonfigurować.",
     "node_order_label": "Kolejność wyświetlania węzłów"
+  },
+  "message-card": {
+    "send_message": "WYŚLIJ WIADOMOŚĆ MESHCORE",
+    "channel": "Kanał",
+    "contact": "Kontakt",
+    "select_channel": "Wybierz kanał",
+    "select_contact": "Wybierz kontakt",
+    "message_placeholder": "Wpisz treść wiadomości...",
+    "send": "Wyślij wiadomość",
+    "sending": "📡 Wysyłanie...",
+    "sent": "✅ Wiadomość wysłana {type}!",
+    "error_recipient": "❌ Wybierz odbiorcę",
+    "error_message": "❌ Wpisz wiadomość",
+    "error_general": "❌ Błąd: {error}",
+    "message_history": "HISTORIA WIADOMOŚCI",
+    "today": "(DZISIAJ)",
+    "loading": "Ładowanie historii...",
+    "no_messages": "Brak wiadomości w historii.<br>Wyślij wiadomość lub poczekaj na nowe.",
+    "no_channels": "Brak skonfigurowanych kanałów lub kontaktów.<br>Upewnij się, że integracja MeshCore działa.",
+    "to_channel": "na kanał",
+    "direct": "bezpośrednio",
+    "seconds_ago": "{n}s temu",
+    "minutes_ago": "{n}m temu",
+    "hours_ago": "{n}h temu",
+    "days_ago": "{n}d temu",
+    "select_prompt": "-- Wybierz --",
+    "contact_unavailable": "Kontakt lub encja jest obecnie niedostępna.",
+    "copied": "Skopiowano!"
   }
 }

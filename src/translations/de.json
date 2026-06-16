@@ -74,5 +74,33 @@
     "max_contact_age": "Maximales Kontakt-Alter (Tage)",
     "no_hubs_detected": "Noch keine MeshCore-Hubs erkannt. Fügen Sie die Karte hinzu und bearbeiten Sie sie anschließend zur Konfiguration.",
     "node_order_label": "Anzeigereihenfolge der Knoten"
+  },
+  "message-card": {
+    "send_message": "MESHCORE-NACHRICHT SENDEN",
+    "channel": "Kanal",
+    "contact": "Kontakt",
+    "select_channel": "Kanal wählen",
+    "select_contact": "Kontakt wählen",
+    "message_placeholder": "Nachricht eingeben...",
+    "send": "Nachricht senden",
+    "sending": "📡 Senden...",
+    "sent": "✅ Nachricht gesendet {type}!",
+    "error_recipient": "❌ Empfänger wählen",
+    "error_message": "❌ Nachricht eingeben",
+    "error_general": "❌ Fehler: {error}",
+    "message_history": "NACHRICHTEN-VERLAUF",
+    "today": "(HEUTE)",
+    "loading": "Lade Verlauf...",
+    "no_messages": "Keine Nachrichten im Verlauf.<br>Sende eine Nachricht oder warte auf neue.",
+    "no_channels": "Keine Kanäle oder Kontakte konfiguriert.<br>Stellen Sie sicher, dass die MeshCore-Integration funktioniert.",
+    "to_channel": "an Kanal",
+    "direct": "direkt",
+    "seconds_ago": "vor {n}s",
+    "minutes_ago": "vor {n}m",
+    "hours_ago": "vor {n}h",
+    "days_ago": "vor {n}d",
+    "select_prompt": "-- Wählen --",
+    "contact_unavailable": "Kontakt oder Entität ist derzeit nicht verfügbar.",
+    "copied": "Gespeichert!"
   }
 }

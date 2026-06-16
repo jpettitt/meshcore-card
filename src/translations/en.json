@@ -74,5 +74,33 @@
     "max_contact_age": "Maximum contact age (days)",
     "no_hubs_detected": "No MeshCore hubs detected yet. Add the card, then edit to configure.",
     "node_order_label": "Node Display Order"
+  },
+  "message-card": {
+    "send_message": "SEND MESHCORE MESSAGE",
+    "channel": "Channel",
+    "contact": "Contact",
+    "select_channel": "Select channel",
+    "select_contact": "Select contact",
+    "message_placeholder": "Type your message...",
+    "send": "Send message",
+    "sending": "📡 Sending...",
+    "sent": "✅ Message sent {type}!",
+    "error_recipient": "❌ Select recipient",
+    "error_message": "❌ Type a message",
+    "error_general": "❌ Error: {error}",
+    "message_history": "MESSAGE HISTORY",
+    "today": "(TODAY)",
+    "loading": "Loading history...",
+    "no_messages": "No messages in history.<br>Send a message or wait for new ones.",
+    "no_channels": "No channels or contacts configured.<br>Make sure MeshCore integration is working.",
+    "to_channel": "to channel",
+    "direct": "direct",
+    "seconds_ago": "{n}s ago",
+    "minutes_ago": "{n}m ago",
+    "hours_ago": "{n}h ago",
+    "days_ago": "{n}d ago",
+    "select_prompt": "-- Select --",
+    "contact_unavailable": "Contact or entity is currently unavailable.",
+    "copied": "Copied!"
   }
 }
