@@ -34,10 +34,17 @@ export class MeshcoreMessageCard extends HTMLElement {
   set hass(hass: HomeAssistant) {
     const oldHass = this._hass;
     this._hass = hass;
+    
     if (oldHass && oldHass.states !== hass.states) {
       MeshcoreMessageCard._globalContactsCache = null;
       MeshcoreMessageCard._globalChannelsCache = null;
     }
+
+    const targetSelect = this.shadowRoot?.querySelector("#target-select") as HTMLSelectElement | null;
+    if (targetSelect && document.activeElement === targetSelect) {
+      return;
+    }
+    
     if (this._initialized) {
       this._updateTargetListOnly();
     } else {
@@ -574,36 +581,39 @@ export class MeshcoreMessageCard extends HTMLElement {
   // ---------- Update select list ----------
   private _updateTargetListOnly(): void {
     if (this._isUpdating) return;
-    this._isUpdating = true;
-    const t = this._getTranslations();
+    
     const targetSelect = this.shadowRoot?.querySelector("#target-select") as HTMLSelectElement | null;
-    if (!targetSelect) {
-      this._isUpdating = false;
-      return;
-    }
+    if (!targetSelect) return;
 
-    let optionsHtml = `<option value="">${t("message-card.select_prompt")}</option>`;
+    const t = this._getTranslations();
+    let newOptionsHtml = `<option value="">${t("message-card.select_prompt")}</option>`;
     let labelText = "";
 
     if (this._messageType === "channel") {
       const channels = this._getChannels();
       labelText = t("message-card.select_channel");
       for (const ch of channels) {
-        optionsHtml += `<option value="${ch.idx}">${escapeHtml(ch.name)} (kanał ${ch.idx})</option>`;
+        newOptionsHtml += `<option value="${ch.idx}">${escapeHtml(ch.name)} (kanał ${ch.idx})</option>`;
       }
     } else {
       const contacts = this._getContacts();
       labelText = t("message-card.select_contact");
       for (const contact of contacts) {
-        optionsHtml += `<option value="${escapeHtml(contact.name)}">${escapeHtml(contact.name)}</option>`;
+        newOptionsHtml += `<option value="${escapeHtml(contact.name)}">${escapeHtml(contact.name)}</option>`;
       }
     }
 
+    if (targetSelect.innerHTML === newOptionsHtml) {
+      return;
+    }
+
+    // Aktualizacja tylko gdy faktycznie są zmiany
+    this._isUpdating = true;
+    const currentValue = targetSelect.value;
     const targetLabelSpan = this.shadowRoot?.querySelector("#target-label span:last-child");
     if (targetLabelSpan) targetLabelSpan.textContent = labelText;
 
-    const currentValue = targetSelect.value;
-    targetSelect.innerHTML = optionsHtml;
+    targetSelect.innerHTML = newOptionsHtml;
     if (currentValue && Array.from(targetSelect.options).some((opt) => opt.value === currentValue)) {
       targetSelect.value = currentValue;
     }
@@ -796,7 +806,6 @@ export class MeshcoreMessageCard extends HTMLElement {
           </div>
           <div id="messages-container">
             <div class="empty-messages">
-              <ha-icon icon="mdi:loading" style="--mdc-icon-size: 28px;"></ha-icon><br>
               ${t("message-card.select_channel")}...
             </div>
           </div>
