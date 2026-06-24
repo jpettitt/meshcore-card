@@ -78,8 +78,20 @@ export function discoverNodes(hass: HomeAssistant): NodeInfo[] {
     const deviceEntityIds = Object.entries(hass.entities)
       .filter(([, info]) => info.device_id === deviceId)
       .map(([id]) => id);
-    const ePrefix = longestCommonPrefix(deviceEntityIds);
-    const eSuffix = majoritySuffix(deviceEntityIds);
+
+    // Neighbor entities (`..._neighbor_<hex>`, `..._neighbor_<hex>_seen`,
+    // `..._neighbor_count`) are keyed by the *neighbor's* pubkey, not the
+    // node-name slug every other entity shares. A repeater with many
+    // neighbors makes these the majority, which defeats majoritySuffix and
+    // collapses eSuffix — so entity lookups fail and the node renders
+    // offline. Exclude them when deriving the prefix/suffix; fall back to the
+    // full list if a device somehow exposes nothing else.
+    const slugEntityIds = deviceEntityIds.filter(
+      (id) => !/_neighbor_(?:count$|[0-9a-f]+(?:_seen)?$)/.test(id)
+    );
+    const suffixSource = slugEntityIds.length ? slugEntityIds : deviceEntityIds;
+    const ePrefix = longestCommonPrefix(suffixSource);
+    const eSuffix = majoritySuffix(suffixSource);
     nodes.push({
       name: device.name_by_user || device.name || deviceId,
       deviceId,
