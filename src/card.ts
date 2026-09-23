@@ -17,13 +17,17 @@ import {
   mapLinkUrl,
 } from "./helpers.js";
 import { STYLES } from "./styles.js";
+import { StateWatcher } from "./state-watcher.js";
 import { discoverHubs, discoverNodes } from "./discovery.js";
 import { makeLocalize, type LocalizeFunc } from "./localize.js";
 
 export class MeshcoreCard extends HTMLElement {
   private _hass?: HomeAssistant;
   private _config?: MeshcoreCardConfig;
-  private _fp: string | null = null;
+  private _watch = new StateWatcher(
+    (id) => id.includes("meshcore"),
+    (s) => `${s.state}@${s.last_changed}`,
+  );
   private _lastRender = 0;
   private _renderTimer: ReturnType<typeof setTimeout> | null = null;
   private _trimTimer: ReturnType<typeof requestAnimationFrame> | null = null;
@@ -45,18 +49,13 @@ export class MeshcoreCard extends HTMLElement {
 
   setConfig(config: MeshcoreCardConfig): void {
     this._config = config;
-    this._fp = null; // force re-render on config change
+    this._watch.reset(); // force re-render on config change
     this._render();
   }
 
   set hass(hass: HomeAssistant) {
     this._hass = hass;
-    const fp = Object.entries(hass.states)
-      .filter(([id]) => id.includes("meshcore"))
-      .map(([id, s]) => `${id}=${s.state}@${s.last_changed}`)
-      .join("|");
-    if (fp === this._fp) return;
-    this._fp = fp;
+    if (!this._watch.changed(hass)) return;
     const now = Date.now();
     if (now - this._lastRender >= 10000) {
       this._lastRender = now;

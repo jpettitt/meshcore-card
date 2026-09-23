@@ -1,6 +1,7 @@
 import type { HomeAssistant, MeshcoreContactCardConfig, HaFormElement } from "./types.js";
 import { formatLastSeen, escapeHtml, mapLinkUrl } from "./helpers.js";
 import { STYLES } from "./styles.js";
+import { StateWatcher } from "./state-watcher.js";
 import { makeLocalize, type LocalizeFunc } from "./localize.js";
 
 const CONTACT_STYLES: string = `
@@ -161,7 +162,12 @@ const DEFAULT_MAX_AGE_DAYS = 7;
 export class MeshcoreContactCard extends HTMLElement {
   private _hass?: HomeAssistant;
   private _config?: MeshcoreContactCardConfig;
-  private _fp: string | null = null;
+  // out_path changes are attribute-only updates (no state change), so they
+  // must be part of the key or path changes would never re-render.
+  private _watch = new StateWatcher(
+    (id) => /^binary_sensor\.meshcore_.*_contact$/.test(id),
+    (s) => `${s.state}@${s.last_changed}:${s.attributes["out_path_len"] ?? ""}:${s.attributes["out_path"] ?? ""}`,
+  );
   private _lastRender = 0;
   private _renderTimer: ReturnType<typeof setTimeout> | null = null;
   private _trimTimer: ReturnType<typeof requestAnimationFrame> | null = null;
@@ -183,20 +189,13 @@ export class MeshcoreContactCard extends HTMLElement {
 
   setConfig(config: MeshcoreContactCardConfig): void {
     this._config = config;
-    this._fp = null;
+    this._watch.reset();
     this._render();
   }
 
   set hass(hass: HomeAssistant) {
     this._hass = hass;
-    // out_path changes are attribute-only updates (no state change), so they
-    // must be part of the fingerprint or path changes would never re-render.
-    const fp = Object.entries(hass.states)
-      .filter(([id]) => /^binary_sensor\.meshcore_.*_contact$/.test(id))
-      .map(([id, s]) => `${id}=${s.state}@${s.last_changed}:${s.attributes["out_path_len"] ?? ""}:${s.attributes["out_path"] ?? ""}`)
-      .join("|");
-    if (fp === this._fp) return;
-    this._fp = fp;
+    if (!this._watch.changed(hass)) return;
     const now = Date.now();
     if (now - this._lastRender >= 10000) {
       this._lastRender = now;

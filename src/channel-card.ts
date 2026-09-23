@@ -1,6 +1,7 @@
 import type { HomeAssistant, MeshcoreChannelCardConfig } from "./types.js";
 import { escapeHtml } from "./helpers.js";
 import { STYLES } from "./styles.js";
+import { StateWatcher } from "./state-watcher.js";
 import { makeLocalize, type LocalizeFunc } from "./localize.js";
 
 const CHANNEL_STYLES: string = `
@@ -113,7 +114,10 @@ function parseChannel(entityId: string, attrs: Record<string, unknown>): { hubNa
 export class MeshcoreChannelCard extends HTMLElement {
   private _hass?: HomeAssistant;
   private _config?: MeshcoreChannelCardConfig;
-  private _fp: string | null = null;
+  private _watch = new StateWatcher(
+    (id) => /^binary_sensor\.meshcore_.*_ch_\d+_messages$/.test(id),
+    (s) => s.state,
+  );
   private _lastRender = 0;
   private _renderTimer: ReturnType<typeof setTimeout> | null = null;
   private _trimTimer: ReturnType<typeof requestAnimationFrame> | null = null;
@@ -135,18 +139,13 @@ export class MeshcoreChannelCard extends HTMLElement {
 
   setConfig(config: MeshcoreChannelCardConfig): void {
     this._config = config;
-    this._fp = null;
+    this._watch.reset();
     this._render();
   }
 
   set hass(hass: HomeAssistant) {
     this._hass = hass;
-    const fp = Object.entries(hass.states)
-      .filter(([id]) => /^binary_sensor\.meshcore_.*_ch_\d+_messages$/.test(id))
-      .map(([id, s]) => `${id}=${s.state}`)
-      .join("|");
-    if (fp === this._fp) return;
-    this._fp = fp;
+    if (!this._watch.changed(hass)) return;
     const now = Date.now();
     if (now - this._lastRender >= 10000) {
       this._lastRender = now;
